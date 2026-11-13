@@ -2,248 +2,747 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ADARSH PARIKSHA KENDRA | Attendance Portal</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADARSH PARIKSHA KENDRA | Attendance Portal</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<style>
+:root {
+  --navy:#063b83;
+  --blue:#0878e8;
+  --bg:#edf4ff;
+  --text:#10254d;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #edf3fa;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
+/* LOGIN */
+#loginScreen{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:22px;
+  background:
+    radial-gradient(circle at 10% 10%,#70d9ff 0,transparent 35%),
+    radial-gradient(circle at 90% 90%,#b5a2ff 0,transparent 35%),
+    linear-gradient(135deg,#087de0,#06377e 65%,#4024a7);
+}
+.login-wrap{
+  width:100%;
+  max-width:440px;
+}
+.login-brand{
+  text-align:center;
+  color:white;
+  margin-bottom:28px;
+}
+.login-brand .logo{
+  font-size:55px;
+  margin-bottom:10px;
+}
+.login-brand h1{
+  font-size:27px;
+  margin:5px 0;
+}
+.city-pill{
+  display:inline-block;
+  background:#ffc928;
+  color:#16213b;
+  padding:7px 22px;
+  border-radius:30px;
+  font-weight:bold;
+  margin:9px 0;
+}
+.login-box{
+  background:white;
+  border-radius:23px;
+  padding:30px;
+  box-shadow:0 18px 45px #001e5040;
+}
+.lock-icon{
+  background:linear-gradient(135deg,#087eea,#5827d5);
+  color:white;
+  width:70px;
+  height:70px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  font-size:30px;
+  margin:-63px auto 15px;
+  border:7px solid white;
+}
+.login-box h2{
+  text-align:center;
+  margin:8px 0;
+  font-size:27px;
+}
+.login-box .hint{
+  text-align:center;
+  color:#65748b;
+  font-size:14px;
+  margin-bottom:25px;
+}
+.field{margin:17px 0}
+.field label{
+  display:block;
+  font-weight:bold;
+  font-size:13px;
+  margin-bottom:8px;
+}
+.field input{
+  width:100%;
+  padding:15px;
+  border:1px solid #c9d5e8;
+  border-radius:11px;
+  outline:none;
+}
+.field input:focus{border-color:#0878e8}
+.login-btn{
+  width:100%;
+  border:0;
+  color:white;
+  background:linear-gradient(100deg,#00a9d6,#0868dc,#7628db);
+  border-radius:12px;
+  padding:16px;
+  font-weight:bold;
+  font-size:17px;
+  margin-top:12px;
+}
+.login-btn:disabled{opacity:.6}
+#loginMessage{
+  text-align:center;
+  font-size:13px;
+  margin-top:14px;
+  overflow-wrap:anywhere;
+}
+.login-footer{
+  color:#e4efff;
+  text-align:center;
+  font-size:12px;
+  margin-top:25px;
+}
 
-    .card {
-      background: white;
-      width: 100%;
-      max-width: 420px;
-      padding: 28px;
-      border-radius: 16px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.10);
-    }
-
-    h2 {
-      text-align: center;
-      color: #123e70;
-      margin: 0;
-      font-size: 23px;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: #64748b;
-      font-size: 13px;
-      margin: 12px 0 25px;
-      line-height: 1.6;
-    }
-
-    h3 {
-      text-align: center;
-      color: #174b83;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: bold;
-      margin: 15px 0 7px;
-    }
-
-    input {
-      width: 100%;
-      padding: 13px;
-      border: 1px solid #ccd5e1;
-      border-radius: 8px;
-      font-size: 15px;
-    }
-
-    input:focus {
-      outline: 2px solid #93c5fd;
-      border-color: #1757a6;
-    }
-
-    button {
-      width: 100%;
-      padding: 14px;
-      border: 0;
-      border-radius: 8px;
-      background: #1757a6;
-      color: white;
-      font-weight: bold;
-      margin-top: 20px;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    #message {
-      text-align: center;
-      font-size: 13px;
-      margin-top: 15px;
-      line-height: 1.5;
-      overflow-wrap: anywhere;
-    }
-
-    footer {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 11px;
-      margin-top: 22px;
-    }
-  </style>
+/* DASHBOARD */
+#dashboardScreen{min-height:100vh}
+.topbar{
+  height:82px;
+  background:linear-gradient(100deg,#0753a9,#032f76);
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 24px;
+  gap:12px;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:15px;
+}
+.menu-btn{
+  border:0;
+  background:transparent;
+  color:white;
+  font-size:27px;
+}
+.brand h1{font-size:22px;margin:0}
+.brand small{color:#ffda35;font-weight:bold}
+.profile{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.profile-icon{
+  background:#fff;
+  color:#0753a9;
+  width:43px;
+  height:43px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  font-size:22px;
+}
+.profile strong{display:block}
+.profile small{font-size:11px}
+.layout{
+  display:flex;
+  min-height:calc(100vh - 82px);
+}
+.sidebar{
+  width:235px;
+  flex-shrink:0;
+  background:linear-gradient(180deg,#063b83,#03295f);
+  color:white;
+  padding:20px 12px;
+}
+.nav-item{
+  width:100%;
+  border:0;
+  background:transparent;
+  color:white;
+  text-align:left;
+  padding:14px 13px;
+  border-radius:10px;
+  margin-bottom:7px;
+  font-weight:bold;
+  font-size:14px;
+}
+.nav-item:hover,.nav-item.active{
+  background:linear-gradient(100deg,#0786f5,#0756c7);
+}
+.nav-item.logout{color:#ff7777;margin-top:20px}
+.main{
+  flex:1;
+  min-width:0;
+  padding:25px;
+}
+.welcome-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  flex-wrap:wrap;
+  margin-bottom:22px;
+}
+.welcome-row h2{margin:0 0 7px;font-size:25px}
+.welcome-row p{margin:0;color:#63748f}
+.date-box{
+  background:white;
+  padding:13px 17px;
+  border:1px solid #cbdcf3;
+  border-radius:12px;
+  color:#16477f;
+  font-weight:bold;
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:15px;
+  margin-bottom:24px;
+}
+.stat{
+  color:white;
+  border-radius:14px;
+  padding:19px;
+  min-height:105px;
+  box-shadow:0 5px 12px #12345620;
+}
+.stat .number{font-size:29px;font-weight:bold}
+.stat .label{font-size:13px;margin-top:5px}
+.stat.blue{background:linear-gradient(130deg,#138cf4,#0752bb)}
+.stat.green{background:linear-gradient(130deg,#20c86b,#00823e)}
+.stat.red{background:linear-gradient(130deg,#ff5961,#d00022)}
+.stat.purple{background:linear-gradient(130deg,#9751f5,#5421bd)}
+.section-title{margin:23px 0 14px;font-size:19px}
+.modules{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px;
+}
+.module{
+  border:0;
+  border-radius:16px;
+  padding:20px;
+  min-height:145px;
+  text-align:left;
+  color:#10254d;
+  box-shadow:0 5px 12px #12345612;
+  transition:transform .15s;
+}
+.module:hover{transform:translateY(-3px)}
+.module .ico{font-size:32px;display:block;margin-bottom:12px}
+.module h3{margin:0 0 8px;font-size:18px}
+.module p{margin:0;font-size:12px}
+.m-blue{background:linear-gradient(135deg,#d8efff,#b9e2ff)}
+.m-green{background:linear-gradient(135deg,#dcffe5,#b9f4ce)}
+.m-orange{background:linear-gradient(135deg,#fff0d7,#ffdfae)}
+.m-purple{background:linear-gradient(135deg,#eee5ff,#d9c7ff)}
+.m-pink{background:linear-gradient(135deg,#ffe6f1,#ffcce0)}
+.m-cyan{background:linear-gradient(135deg,#ddfaff,#b8f0f6)}
+.bottom-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:17px;
+  margin-top:23px;
+}
+.panel{
+  background:white;
+  border-radius:15px;
+  padding:20px;
+  box-shadow:0 4px 14px #12345610;
+}
+.panel h3{margin:0 0 15px}
+.panel p{color:#718096;font-size:13px;line-height:1.6}
+.quick-buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.quick{
+  padding:13px;
+  border:0;
+  border-radius:9px;
+  color:white;
+  font-weight:bold;
+}
+.q-green{background:#079c50}
+.q-blue{background:#0876df}
+.q-purple{background:#7135d5}
+.q-orange{background:#ed8200}
+#moduleContent{
+  background:white;
+  border-radius:16px;
+  padding:24px;
+  min-height:240px;
+}
+.back-btn{
+  border:0;
+  padding:10px 15px;
+  background:#e4efff;
+  color:#0753a9;
+  border-radius:8px;
+  font-weight:bold;
+}
+.notice{
+  background:#fff5d9;
+  border-left:4px solid #f3b62c;
+  padding:13px;
+  border-radius:8px;
+  margin-top:20px;
+  font-size:13px;
+}
+@media(max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .modules{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:650px){
+  .topbar{padding:10px 13px;height:70px}
+  .brand h1{font-size:15px}
+  .brand small{font-size:10px}
+  .profile{gap:6px}
+  .profile-icon{width:35px;height:35px}
+  .profile strong{font-size:12px}
+  .profile small{font-size:9px}
+  .layout{min-height:calc(100vh - 70px)}
+  .sidebar{width:65px;padding:13px 5px}
+  .nav-item{
+    font-size:0;
+    text-align:center;
+    padding:14px 3px;
+  }
+  .nav-item span{font-size:20px}
+  .main{padding:15px 11px}
+  .welcome-row h2{font-size:20px}
+  .date-box{font-size:12px}
+  .stats{gap:9px}
+  .stat{padding:13px;min-height:90px}
+  .stat .number{font-size:23px}
+  .stat .label{font-size:11px}
+  .modules{gap:9px}
+  .module{padding:13px;min-height:130px}
+  .module h3{font-size:15px}
+  .module p{font-size:11px}
+  .bottom-grid{grid-template-columns:1fr}
+}
+</style>
 </head>
 
 <body>
 
-  <div class="card">
+<!-- LOGIN SCREEN -->
+<section id="loginScreen">
+  <div class="login-wrap">
 
-    <h2>ADARSH PARIKSHA KENDRA</h2>
-
-    <div class="subtitle">
-      MUZAFFARPUR<br>
-      ATTENDANCE MANAGEMENT PORTAL
+    <div class="login-brand">
+      <div class="logo">📋</div>
+      <h1>ADARSH PARIKSHA KENDRA</h1>
+      <div class="city-pill">MUZAFFARPUR</div>
+      <div><b>ATTENDANCE MANAGEMENT PORTAL</b></div>
     </div>
 
-    <h3>Secure Login</h3>
+    <div class="login-box">
+      <div class="lock-icon">🔒</div>
+      <h2>Secure Login</h2>
+      <p class="hint">Login to access the Attendance Portal</p>
 
-    <form id="loginForm">
+      <form id="loginForm">
+        <div class="field">
+          <label>Email Address</label>
+          <input id="email" type="email" required
+            placeholder="Enter email address"
+            autocomplete="username">
+        </div>
 
-      <label for="email">Email Address</label>
-      <input
-        type="email"
-        id="email"
-        placeholder="Enter email address"
-        required
-        autocomplete="username"
-      >
+        <div class="field">
+          <label>Password</label>
+          <input id="password" type="password" required
+            placeholder="Enter password"
+            autocomplete="current-password">
+        </div>
 
-      <label for="password">Password</label>
-      <input
-        type="password"
-        id="password"
-        placeholder="Enter password"
-        required
-        autocomplete="current-password"
-      >
+        <button class="login-btn" id="loginBtn" type="submit">
+          ➜ LOGIN
+        </button>
+      </form>
 
-      <button id="loginBtn" type="submit">
-        LOGIN
-      </button>
+      <div id="loginMessage" role="status"></div>
+    </div>
 
-    </form>
-
-    <div id="message" role="status" aria-live="polite"></div>
-
-    <footer>
+    <div class="login-footer">
       © 2026 ADARSH PARIKSHA KENDRA
-    </footer>
-
+    </div>
   </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dashboardScreen" class="hidden">
+
+  <header class="topbar">
+    <div class="brand">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+      <div>
+        <h1>ADARSH PARIKSHA KENDRA</h1>
+        <small>MUZAFFARPUR</small>
+      </div>
+    </div>
+
+    <div class="profile">
+      <div class="profile-icon">👤</div>
+      <div>
+        <strong id="profileName">Admin</strong>
+        <small id="profileRole">ADMIN</small>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar" id="sidebar">
+      <button class="nav-item active" data-module="dashboard">
+        <span>🏠</span> Dashboard
+      </button>
+      <button class="nav-item" data-module="staff">
+        <span>👥</span> Staff Master
+      </button>
+      <button class="nav-item" data-module="attendance">
+        <span>☑️</span> Mark Attendance
+      </button>
+      <button class="nav-item" data-module="duty">
+        <span>📅</span> Duty Assignment
+      </button>
+      <button class="nav-item" data-module="view">
+        <span>📋</span> Attendance View
+      </button>
+      <button class="nav-item" data-module="reports">
+        <span>📊</span> Reports
+      </button>
+      <button class="nav-item" data-module="admins">
+        <span>🛡️</span> Admin Management
+      </button>
+      <button class="nav-item" data-module="settings">
+        <span>⚙️</span> System Settings
+      </button>
+      <button class="nav-item logout" id="logoutBtn">
+        <span>🚪</span> Logout
+      </button>
+    </aside>
+
+    <main class="main">
+
+      <div id="homeContent">
+
+        <div class="welcome-row">
+          <div>
+            <h2>Welcome, <span id="welcomeName">Admin</span> 👋</h2>
+            <p>Attendance Management Portal</p>
+          </div>
+          <div class="date-box" id="dateBox">📅 Loading date...</div>
+        </div>
+
+        <div class="stats">
+          <div class="stat blue">
+            <div class="number">—</div>
+            <div class="label">👥 Total Staff</div>
+          </div>
+          <div class="stat green">
+            <div class="number">—</div>
+            <div class="label">✔ Total Present</div>
+          </div>
+          <div class="stat red">
+            <div class="number">—</div>
+            <div class="label">✖ Total Absent</div>
+          </div>
+          <div class="stat purple">
+            <div class="number">—</div>
+            <div class="label">📅 Total Duty Days</div>
+          </div>
+        </div>
+
+        <h3 class="section-title">Quick Access Modules</h3>
+
+        <div class="modules">
+          <button class="module m-blue" data-module="staff">
+            <span class="ico">👥</span>
+            <h3>Staff Master</h3>
+            <p>Add / Update / View Staff →</p>
+          </button>
+
+          <button class="module m-green" data-module="attendance">
+            <span class="ico">☑️</span>
+            <h3>Mark Attendance</h3>
+            <p>Add / Bulk / Edit Attendance →</p>
+          </button>
+
+          <button class="module m-orange" data-module="duty">
+            <span class="ico">📅</span>
+            <h3>Duty Assignment</h3>
+            <p>Assign / View / Replace Duty →</p>
+          </button>
+
+          <button class="module m-purple" data-module="view">
+            <span class="ico">📋</span>
+            <h3>Attendance View</h3>
+            <p>Date-wise Attendance List →</p>
+          </button>
+
+          <button class="module m-pink" data-module="reports">
+            <span class="ico">📊</span>
+            <h3>Reports</h3>
+            <p>Excel / PDF / Summary →</p>
+          </button>
+
+          <button class="module m-cyan" data-module="admins">
+            <span class="ico">🛡️</span>
+            <h3>Admin Management</h3>
+            <p>Manage Admin & Access →</p>
+          </button>
+        </div>
+
+        <div class="bottom-grid">
+          <div class="panel">
+            <h3>📌 Recent Attendance</h3>
+            <p>Attendance records will appear here after the attendance module is connected to the database.</p>
+          </div>
+
+          <div class="panel">
+            <h3>⚡ Quick Actions</h3>
+            <div class="quick-buttons">
+              <button class="quick q-green" data-module="staff">＋ Add Staff</button>
+              <button class="quick q-blue" data-module="attendance">☑ Attendance</button>
+              <button class="quick q-purple" data-module="reports">↓ Reports</button>
+              <button class="quick q-orange" data-module="duty">▦ View Duty</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="notice">
+          <b>System Setup:</b> Dashboard design is ready. Live statistics and individual modules will be connected to Supabase in the next development steps.
+        </div>
+
+      </div>
+
+      <div id="moduleContent" class="hidden">
+        <button class="back-btn" id="backBtn">← Back to Dashboard</button>
+        <h2 id="moduleTitle">Module</h2>
+        <p id="moduleDescription"></p>
+        <div class="notice">
+          This module is being configured. Your database records are not modified from this screen.
+        </div>
+      </div>
+
+    </main>
+  </div>
+</section>
 
 <script>
-
 const SUPABASE_URL =
   "https://vloplldknyojtnpuavyn.supabase.co";
 
 const SUPABASE_KEY =
   "sb_publishable_B1FWuERTMtP3SMaGX4MfOQ_XQntj_cJ";
 
-const supabaseClient = window.supabase.createClient(
+const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
 
+const loginScreen = document.getElementById("loginScreen");
+const dashboardScreen = document.getElementById("dashboardScreen");
 const loginForm = document.getElementById("loginForm");
 const loginBtn = document.getElementById("loginBtn");
-const message = document.getElementById("message");
+const loginMessage = document.getElementById("loginMessage");
 
-loginForm.addEventListener("submit", async function(event) {
+const moduleNames = {
+  staff:["Staff Master","Staff registration, search, Excel import and staff records."],
+  attendance:["Mark Attendance","Daily staff attendance with live camera photo and duplicate protection."],
+  duty:["Duty Assignment","Date-wise staff duty assignment, replacement and duty list."],
+  view:["Attendance View","Date-wise attendance records and attendance status."],
+  reports:["Reports","Monthly Excel, daily PDF and attendance summaries."],
+  admins:["Admin Management","SuperAdmin controls for creating and managing Admin accounts."],
+  settings:["System Settings","Portal configuration and system controls."]
+};
 
+function showDashboard(user,role) {
+  loginScreen.classList.add("hidden");
+  dashboardScreen.classList.remove("hidden");
+
+  const displayName =
+    user.user_metadata?.full_name ||
+    user.email?.split("@")[0] ||
+    "Admin";
+
+  document.getElementById("profileName").textContent = displayName;
+  document.getElementById("welcomeName").textContent = displayName;
+  document.getElementById("profileRole").textContent = role;
+
+  updateDate();
+  showModule("dashboard");
+}
+
+function updateDate() {
+  document.getElementById("dateBox").textContent =
+    "📅 " + new Intl.DateTimeFormat("en-IN",{
+      timeZone:"Asia/Kolkata",
+      dateStyle:"full"
+    }).format(new Date());
+}
+
+async function verifyRole(user) {
+  const {data,error} = await db
+    .from("user_roles")
+    .select("role")
+    .eq("user_id",user.id)
+    .maybeSingle();
+
+  if(error) throw error;
+
+  if(!data || !["ADMIN","SUPERADMIN"].includes(data.role)) {
+    throw new Error("Access denied. Admin account not found.");
+  }
+
+  return data.role;
+}
+
+loginForm.addEventListener("submit",async function(event) {
   event.preventDefault();
 
   loginBtn.disabled = true;
   loginBtn.textContent = "PLEASE WAIT...";
-
-  message.style.color = "#174b83";
-  message.textContent = "Checking login details...";
+  loginMessage.style.color = "#174b83";
+  loginMessage.textContent = "Verifying secure login...";
 
   try {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-    const email = document
-      .getElementById("email")
-      .value.trim();
+    const {data,error} = await db.auth.signInWithPassword({
+      email,
+      password
+    });
 
-    const password = document
-      .getElementById("password")
-      .value;
+    if(error) throw error;
 
-    const { data, error } =
-      await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
+    const role = await verifyRole(data.user);
 
-    if (error) {
-      throw error;
-    }
+    loginMessage.textContent = "Login successful!";
+    loginMessage.style.color = "green";
 
-    const { data: roleData, error: roleError } =
-      await supabaseClient
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .maybeSingle();
+    showDashboard(data.user,role);
 
-    if (roleError) {
-      throw roleError;
-    }
-
-    if (
-      !roleData ||
-      !["ADMIN", "SUPERADMIN"].includes(roleData.role)
-    ) {
-      await supabaseClient.auth.signOut();
-
-      throw new Error(
-        "Access denied. Admin account not found."
-      );
-    }
-
-    message.style.color = "green";
-
-    message.textContent =
-      "LOGIN SUCCESSFUL! Role: " +
-      roleData.role +
-      ". Dashboard setup is pending.";
-
-    loginBtn.textContent = "LOGGED IN";
-
-  } catch (error) {
-
-    message.style.color = "red";
-    message.textContent = error.message;
+  } catch(error) {
+    loginMessage.style.color = "red";
+    loginMessage.textContent = error.message;
 
     loginBtn.disabled = false;
-    loginBtn.textContent = "LOGIN";
-
+    loginBtn.textContent = "➜ LOGIN";
   }
-
 });
 
+async function restoreSession() {
+  try {
+    const {data,error} = await db.auth.getSession();
+    if(error) throw error;
+
+    if(data.session?.user) {
+      const role = await verifyRole(data.session.user);
+      showDashboard(data.session.user,role);
+    }
+  } catch(error) {
+    await db.auth.signOut();
+    loginScreen.classList.remove("hidden");
+    dashboardScreen.classList.add("hidden");
+  }
+}
+
+function showModule(module) {
+  const home = document.getElementById("homeContent");
+  const content = document.getElementById("moduleContent");
+
+  document.querySelectorAll(".nav-item").forEach(button=>{
+    button.classList.toggle(
+      "active",
+      button.dataset.module === module
+    );
+  });
+
+  if(module === "dashboard") {
+    home.classList.remove("hidden");
+    content.classList.add("hidden");
+    return;
+  }
+
+  const details = moduleNames[module];
+  if(!details) return;
+
+  home.classList.add("hidden");
+  content.classList.remove("hidden");
+
+  document.getElementById("moduleTitle").textContent = details[0];
+  document.getElementById("moduleDescription").textContent = details[1];
+}
+
+document.querySelectorAll("[data-module]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    showModule(button.dataset.module);
+  });
+});
+
+document.getElementById("backBtn").addEventListener("click",()=>{
+  showModule("dashboard");
+});
+
+document.getElementById("menuBtn").addEventListener("click",()=>{
+  document.getElementById("sidebar").classList.toggle("hidden");
+});
+
+document.getElementById("logoutBtn").addEventListener("click",async()=>{
+  const {error} = await db.auth.signOut();
+
+  if(error) {
+    alert("Logout failed: " + error.message);
+    return;
+  }
+
+  dashboardScreen.classList.add("hidden");
+  loginScreen.classList.remove("hidden");
+  loginForm.reset();
+  loginBtn.disabled = false;
+  loginBtn.textContent = "➜ LOGIN";
+  loginMessage.textContent = "";
+});
+
+restoreSession();
 </script>
 
 </body>

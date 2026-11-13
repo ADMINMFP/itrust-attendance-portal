@@ -575,6 +575,59 @@ button{cursor:pointer}
           <button class="quick q-green" id="importStaffBtn" type="button" disabled style="opacity:.55;cursor:not-allowed;margin-left:8px">Import Valid Records</button>
           <p id="staffImportMessage" role="status" style="overflow-wrap:anywhere"></p>
         </div>
+        <div id="staffMasterViewPanel" class="panel hidden" style="margin-top:18px">
+          <h3>Staff Master — Complete Records</h3>
+          <p>Tag ID, नाम, शहर, भूमिका और मोबाइल से खोजें। Aadhaar नंबर सूची में सुरक्षित रूप से masked रहेगा।</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+            <input id="staffSearchInput" type="search" placeholder="Search Tag ID / Name / City / Role / Mobile" style="flex:1;min-width:220px;padding:12px;border:1px solid #c9d5e8;border-radius:9px">
+            <button class="quick q-blue" id="staffSearchBtn" type="button">Search</button>
+            <button class="quick q-green" id="staffRefreshBtn" type="button">Refresh</button>
+          </div>
+          <p id="staffListMessage" role="status"></p>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:760px;font-size:13px">
+              <thead><tr style="background:#0753a9;color:white">
+                <th style="padding:10px">SL</th><th>TAG ID</th><th>STAFF NAME</th><th>CITY</th><th>ROLE</th><th>MOBILE</th><th>AADHAAR</th><th>ACTION</th>
+              </tr></thead>
+              <tbody id="staffMasterTableBody"><tr><td colspan="8" style="padding:15px;text-align:center">Search/Refresh दबाएँ।</td></tr></tbody>
+            </table>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+            <button class="quick q-blue" id="staffPrevBtn" type="button">← Previous</button>
+            <span id="staffPageInfo" style="font-size:13px;color:#52657f">Page 1</span>
+            <button class="quick q-blue" id="staffNextBtn" type="button">Next →</button>
+          </div>
+        </div>
+
+        <div id="staffEditPanel" class="panel hidden" style="margin-top:18px;border:2px solid #0878e8">
+          <h3>✏️ Edit Staff Record <span id="staffEditTagLabel"></span></h3>
+          <p>Tag ID स्थायी है और बदला नहीं जा सकता। Update केवल SUPERADMIN कर सकता है।</p>
+          <input id="editStaffId" type="hidden">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 14px">
+            <div class="field"><label>Tag ID (Locked)</label><input id="edit_tag_id" disabled></div>
+            <div class="field"><label>EF REGION</label><input id="edit_ef_region"></div>
+            <div class="field"><label>EF STATE</label><input id="edit_ef_state"></div>
+            <div class="field"><label>EF CITY</label><input id="edit_ef_city"></div>
+            <div class="field"><label>EF VENUE NAME</label><input id="edit_ef_venue_name"></div>
+            <div class="field"><label>EF FIRST NAME</label><input id="edit_ef_first_name"></div>
+            <div class="field"><label>EF MIDDLE NAME</label><input id="edit_ef_middle_name"></div>
+            <div class="field"><label>EF LAST NAME</label><input id="edit_ef_last_name"></div>
+            <div class="field"><label>EF DOB</label><input id="edit_ef_dob" type="date"></div>
+            <div class="field"><label>EF GENDER</label><input id="edit_ef_gender"></div>
+            <div class="field"><label>EF PHONENUMBER</label><input id="edit_ef_phonenumber" inputmode="numeric"></div>
+            <div class="field"><label>EF AADHAR NUMBER</label><input id="edit_ef_aadhar_number" inputmode="numeric" maxlength="12"></div>
+            <div class="field"><label>EF FATHER NAME</label><input id="edit_ef_father_name"></div>
+            <div class="field"><label>EF MOTHER NAME</label><input id="edit_ef_mother_name"></div>
+            <div class="field"><label>EF EMAIL ID</label><input id="edit_ef_email_id" type="email"></div>
+            <div class="field"><label>EF QUALIFICATION</label><input id="edit_ef_qualification"></div>
+            <div class="field"><label>EF ROLE</label><input id="edit_ef_role"></div>
+            <div class="field" style="grid-column:1/-1"><label>EF PERMANENT ADDRESS</label><input id="edit_ef_permanent_address"></div>
+          </div>
+          <p id="staffEditMessage" role="status"></p>
+          <button class="quick q-green" id="saveStaffEditBtn" type="button">Save Update</button>
+          <button class="quick q-orange" id="cancelStaffEditBtn" type="button" style="margin-left:8px">Cancel</button>
+        </div>
+
         <div class="notice" id="modulePlaceholderNotice">
           This module is being configured. Your database records are not modified from this screen.
         </div>
@@ -602,6 +655,8 @@ const loginForm = document.getElementById("loginForm");
 const loginBtn = document.getElementById("loginBtn");
 const loginMessage = document.getElementById("loginMessage");
 
+let currentUserRole = null;
+
 const moduleNames = {
   staff:["Staff Master","Staff registration, search, Excel import and staff records."],
   attendance:["Mark Attendance","Daily staff attendance with live camera photo and duplicate protection."],
@@ -613,6 +668,7 @@ const moduleNames = {
 };
 
 function showDashboard(user,role) {
+  currentUserRole = role;
   loginScreen.classList.add("hidden");
   dashboardScreen.classList.remove("hidden");
 
@@ -731,12 +787,19 @@ function showModule(module) {
   document.getElementById("moduleDescription").textContent = details[1];
 
   const staffPanel = document.getElementById("staffImportPanel");
+  const staffViewPanel = document.getElementById("staffMasterViewPanel");
+  const staffEditPanel = document.getElementById("staffEditPanel");
   const placeholderNotice = document.getElementById("modulePlaceholderNotice");
   if (module === "staff") {
     staffPanel.classList.remove("hidden");
+    staffViewPanel.classList.remove("hidden");
+    staffEditPanel.classList.add("hidden");
     placeholderNotice.classList.add("hidden");
+    loadStaffMaster(0);
   } else {
     staffPanel.classList.add("hidden");
+    staffViewPanel.classList.add("hidden");
+    staffEditPanel.classList.add("hidden");
     placeholderNotice.classList.remove("hidden");
   }
 }
@@ -991,6 +1054,7 @@ importStaffButton.addEventListener("click", async () => {
     lockStaffImport();
     staffImportMessage.style.color = "green";
     staffImportMessage.textContent = "Import response: " + JSON.stringify(importResult);
+    await loadStaffMaster(0);
   } catch (error) {
     lockStaffImport();
     staffImportMessage.style.color = "red";
@@ -1001,6 +1065,126 @@ importStaffButton.addEventListener("click", async () => {
     importStaffButton.textContent = "Import Valid Records";
     importStaffButton.disabled = true;
   }
+});
+
+// STAFF MASTER VIEW + SUPERADMIN EDIT
+const STAFF_PAGE_SIZE = 50;
+let staffCurrentOffset = 0;
+let staffCurrentSearch = "";
+let staffCurrentRows = [];
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+
+function setStaffListMessage(message, color="#52657f") {
+  const el = document.getElementById("staffListMessage");
+  el.style.color = color;
+  el.textContent = message;
+}
+
+async function loadStaffMaster(offset=0) {
+  staffCurrentOffset = Math.max(0, offset);
+  staffCurrentSearch = document.getElementById("staffSearchInput").value.trim();
+  const body = document.getElementById("staffMasterTableBody");
+  body.innerHTML = '<tr><td colspan="8" style="padding:15px;text-align:center">Loading Staff Master...</td></tr>';
+  setStaffListMessage("Staff records लोड हो रहे हैं...");
+  try {
+    const {data,error} = await db.rpc("get_staff_master_records", {
+      p_search: staffCurrentSearch || null,
+      p_limit: STAFF_PAGE_SIZE,
+      p_offset: staffCurrentOffset
+    });
+    if(error) throw error;
+    staffCurrentRows = Array.isArray(data) ? data : [];
+    if(!staffCurrentRows.length) {
+      body.innerHTML = '<tr><td colspan="8" style="padding:15px;text-align:center">कोई Staff Record नहीं मिला।</td></tr>';
+    } else {
+      body.innerHTML = staffCurrentRows.map((row,index)=>{
+        const fullName = [row.ef_first_name,row.ef_middle_name,row.ef_last_name].filter(Boolean).join(" ");
+        const action = currentUserRole === "SUPERADMIN"
+          ? `<button class="quick q-orange" type="button" data-edit-staff="${escapeHtml(row.id)}">Edit</button>`
+          : '<span style="color:#718096">View only</span>';
+        return `<tr style="border-bottom:1px solid #e5edf7">
+          <td style="padding:10px">${staffCurrentOffset+index+1}</td>
+          <td style="padding:10px;white-space:nowrap">${escapeHtml(row.tag_id)}</td>
+          <td style="padding:10px">${escapeHtml(fullName)}</td>
+          <td style="padding:10px">${escapeHtml(row.ef_city)}</td>
+          <td style="padding:10px">${escapeHtml(row.ef_role)}</td>
+          <td style="padding:10px">${escapeHtml(row.ef_phonenumber)}</td>
+          <td style="padding:10px">${escapeHtml(row.masked_aadhar)}</td>
+          <td style="padding:10px">${action}</td>
+        </tr>`;
+      }).join("");
+      body.querySelectorAll("[data-edit-staff]").forEach(btn=>btn.addEventListener("click",()=>openStaffEditor(btn.dataset.editStaff)));
+    }
+    setStaffListMessage(`इस पेज पर ${staffCurrentRows.length} रिकॉर्ड | कुल पेज आकार ${STAFF_PAGE_SIZE}`, "green");
+    document.getElementById("staffPageInfo").textContent = `Page ${Math.floor(staffCurrentOffset/STAFF_PAGE_SIZE)+1}`;
+    document.getElementById("staffPrevBtn").disabled = staffCurrentOffset === 0;
+    document.getElementById("staffNextBtn").disabled = staffCurrentRows.length < STAFF_PAGE_SIZE;
+  } catch(error) {
+    body.innerHTML = '<tr><td colspan="8" style="padding:15px;color:#b91c1c">Staff Master load failed.</td></tr>';
+    setStaffListMessage("Error: " + (error?.message || "Unknown error") + " — SQL functions install करें।", "red");
+  }
+}
+
+async function openStaffEditor(staffId) {
+  if(currentUserRole !== "SUPERADMIN") { alert("Only SUPERADMIN can edit Staff Master."); return; }
+  const message = document.getElementById("staffEditMessage");
+  message.style.color = "#174b83";
+  message.textContent = "Record लोड हो रहा है...";
+  document.getElementById("staffEditPanel").classList.remove("hidden");
+  document.getElementById("staffEditPanel").scrollIntoView({behavior:"smooth",block:"start"});
+  try {
+    const {data,error} = await db.rpc("get_staff_master_record_for_edit", {p_staff_id:staffId});
+    if(error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if(!row) throw new Error("Staff record नहीं मिला।");
+    document.getElementById("editStaffId").value = row.id;
+    document.getElementById("editStaffTagLabel").textContent = "— " + row.tag_id;
+    const keys = ["tag_id","ef_region","ef_state","ef_city","ef_venue_name","ef_first_name","ef_middle_name","ef_last_name","ef_dob","ef_gender","ef_phonenumber","ef_aadhar_number","ef_father_name","ef_mother_name","ef_email_id","ef_qualification","ef_permanent_address","ef_role"];
+    keys.forEach(key=>{
+      const el=document.getElementById("edit_"+key);
+      if(el) el.value = row[key] ?? "";
+    });
+    message.textContent = "Record loaded. आवश्यक बदलाव करके Save Update दबाएँ।";
+  } catch(error) {
+    message.style.color = "red";
+    message.textContent = "Edit load error: " + (error?.message || "Unknown error");
+  }
+}
+
+async function saveStaffMasterEdit() {
+  if(currentUserRole !== "SUPERADMIN") throw new Error("Only SUPERADMIN can update Staff Master.");
+  const staffId = document.getElementById("editStaffId").value;
+  if(!staffId) throw new Error("Staff record ID missing.");
+  const keys = ["ef_region","ef_state","ef_city","ef_venue_name","ef_first_name","ef_middle_name","ef_last_name","ef_dob","ef_gender","ef_phonenumber","ef_aadhar_number","ef_father_name","ef_mother_name","ef_email_id","ef_qualification","ef_permanent_address","ef_role"];
+  const changes = {};
+  keys.forEach(key=>changes[key] = document.getElementById("edit_"+key).value.trim());
+  if(changes.ef_dob && !/^\d{4}-\d{2}-\d{2}$/.test(changes.ef_dob)) throw new Error("DOB format सही नहीं है।");
+  if(changes.ef_aadhar_number && !/^\d{12}$/.test(changes.ef_aadhar_number)) throw new Error("Aadhaar Number 12 digits का होना चाहिए।");
+  const {data,error} = await db.rpc("update_staff_master_record", {p_staff_id:staffId,p_data:changes});
+  if(error) throw error;
+  return data;
+}
+
+document.getElementById("staffSearchBtn").addEventListener("click",()=>loadStaffMaster(0));
+document.getElementById("staffRefreshBtn").addEventListener("click",()=>loadStaffMaster(staffCurrentOffset));
+document.getElementById("staffSearchInput").addEventListener("keydown",event=>{if(event.key==="Enter") loadStaffMaster(0);});
+document.getElementById("staffPrevBtn").addEventListener("click",()=>loadStaffMaster(Math.max(0,staffCurrentOffset-STAFF_PAGE_SIZE)));
+document.getElementById("staffNextBtn").addEventListener("click",()=>loadStaffMaster(staffCurrentOffset+STAFF_PAGE_SIZE));
+document.getElementById("cancelStaffEditBtn").addEventListener("click",()=>document.getElementById("staffEditPanel").classList.add("hidden"));
+document.getElementById("saveStaffEditBtn").addEventListener("click",async()=>{
+  const btn=document.getElementById("saveStaffEditBtn");
+  const msg=document.getElementById("staffEditMessage");
+  btn.disabled=true; btn.textContent="SAVING..."; msg.style.color="#174b83"; msg.textContent="Update सुरक्षित रूप से save हो रहा है...";
+  try {
+    await saveStaffMasterEdit();
+    msg.style.color="green"; msg.textContent="Staff Master record successfully updated.";
+    await loadStaffMaster(staffCurrentOffset);
+  } catch(error) {
+    msg.style.color="red"; msg.textContent="Update failed: "+(error?.message||"Unknown error");
+  } finally { btn.disabled=false; btn.textContent="Save Update"; }
 });
 
 document.getElementById("menuBtn").addEventListener("click",()=>{

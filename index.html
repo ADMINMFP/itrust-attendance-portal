@@ -330,6 +330,21 @@ button{cursor:pointer}
 .attendance-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
 .attendance-status{padding:12px;border-radius:9px;background:#f2f6fc;margin-top:12px;overflow-wrap:anywhere}
 
+
+/* FINAL MODULES */
+.module-panel{background:#fff;border:1px solid #dbe6f5;border-radius:14px;padding:18px;margin-top:16px;box-shadow:0 4px 14px #1234560c}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.form-grid input,.form-grid select,.module-panel input,.module-panel select{width:100%;padding:11px;border:1px solid #c9d5e8;border-radius:9px;background:#fff;color:#10254d}
+.action-row{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.data-table{width:100%;border-collapse:collapse;min-width:650px;font-size:13px}
+.data-table th{background:#0753a9;color:#fff;padding:11px;text-align:left;white-space:nowrap}
+.data-table td{padding:10px;border-bottom:1px solid #e5edf7;vertical-align:top}
+.pill{display:inline-block;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:bold;background:#e8f1ff;color:#0753a9}
+.statusline{padding:10px;border-radius:8px;background:#f2f6fc;margin:10px 0;overflow-wrap:anywhere;font-size:13px}
+.permission-grid{display:grid;grid-template-columns:1fr repeat(4,70px);gap:7px;align-items:center;font-size:13px}
+.permission-grid>div{padding:7px;border-bottom:1px solid #e5edf7}
+@media(max-width:650px){.permission-grid{grid-template-columns:1fr repeat(4,45px);font-size:11px}.permission-grid input{width:16px}}
+
 @media(max-width:900px){
   .stats{grid-template-columns:repeat(2,1fr)}
   .modules{grid-template-columns:repeat(2,1fr)}
@@ -674,6 +689,33 @@ button{cursor:pointer}
           <div id="attendanceMessage" class="attendance-status" role="status">Attendance action के लिए Staff खोजें।</div>
         </div>
 
+
+        <section id="dutyPanel" class="module-panel hidden">
+          <h3>📅 Duty Assignment</h3><p>एक तारीख पर Staff की Duty assign, replace या remove करें।</p>
+          <div class="form-grid"><input id="dutyTag" placeholder="Staff Tag ID (IIL123)"><input id="dutyDate" type="date"><input id="dutyOldTag" placeholder="Replace: Old Tag ID"><input id="dutyNewTag" placeholder="Replace: New Tag ID"></div>
+          <div class="action-row"><button class="quick q-green" id="dutyAssignBtn">＋ Assign Duty</button><button class="quick q-orange" id="dutyReplaceBtn">⇄ Replace Duty</button><button class="quick q-blue" id="dutyLoadBtn">View Date-wise Duty</button><button class="quick q-purple" id="dutyRemoveBtn">Remove Duty</button></div>
+          <div id="dutyMessage" class="statusline">Date चुनकर Duty देखें।</div><div style="overflow:auto"><table class="data-table"><thead><tr><th>SL</th><th>TAG ID</th><th>NAME</th><th>ROLE</th><th>DATE</th></tr></thead><tbody id="dutyRows"><tr><td colspan="5">No data loaded.</td></tr></tbody></table></div>
+        </section>
+        <section id="viewPanel" class="module-panel hidden">
+          <h3>📋 Attendance View</h3><div class="form-grid"><input id="viewAttendanceDate" type="date"><input id="viewAttendanceSearch" placeholder="Search Tag ID / Name"></div>
+          <div class="action-row"><button class="quick q-blue" id="loadAttendanceViewBtn">Load Attendance</button><button class="quick q-green" id="exportAttendanceBtn">Export Excel</button></div>
+          <div id="viewAttendanceMessage" class="statusline">Date select करके records load करें।</div><div style="overflow:auto"><table class="data-table"><thead id="attendanceViewHead"></thead><tbody id="attendanceViewRows"><tr><td>Records not loaded.</td></tr></tbody></table></div>
+        </section>
+        <section id="reportsPanel" class="module-panel hidden">
+          <h3>📊 Attendance Reports</h3><p>Daily attendance report को Excel में export करें। Monthly summary के लिए उपलब्ध backend summary RPC का उपयोग किया जाएगा।</p>
+          <div class="form-grid"><input id="reportDate" type="date"><input id="reportMonth" type="month"></div>
+          <div class="action-row"><button class="quick q-blue" id="dailyReportBtn">Load Daily Summary</button><button class="quick q-green" id="dailyExportBtn">Download Daily Excel</button></div><div id="reportMessage" class="statusline">Report date चुनें।</div>
+        </section>
+        <section id="adminsPanel" class="module-panel hidden">
+          <h3>🛡️ Admin Management — SuperAdmin</h3><p>नया Admin बनाएँ और उसके module permissions तय करें। Temporary password कम-से-कम 12 characters का होना चाहिए।</p>
+          <div class="form-grid"><input id="newAdminEmail" type="email" placeholder="Admin Email"><input id="newAdminPassword" type="password" placeholder="Temporary Password (12+ characters)"></div>
+          <h4>Module Permissions</h4><div class="permission-grid" id="newAdminPermissionGrid"></div>
+          <div class="action-row"><button class="quick q-purple" id="createAdminBtn">Create Admin</button></div><div id="adminMessage" class="statusline">Admin account केवल SuperAdmin बना सकता है।</div>
+        </section>
+        <section id="settingsPanel" class="module-panel hidden">
+          <h3>⚙️ System Settings</h3><p>Portal configuration और current access status.</p><div id="settingsInfo" class="statusline">Access details loading...</div><button class="quick q-blue" id="refreshAccessBtn">Refresh Access</button>
+        </section>
+
         <div class="notice" id="modulePlaceholderNotice">
           This module is being configured. Your database records are not modified from this screen.
         </div>
@@ -837,19 +879,20 @@ function showModule(module) {
   const staffEditPanel = document.getElementById("staffEditPanel");
   const attendancePanel = document.getElementById("attendancePanel");
   const placeholderNotice = document.getElementById("modulePlaceholderNotice");
+  const panelMap = {duty:"dutyPanel",view:"viewPanel",reports:"reportsPanel",admins:"adminsPanel",settings:"settingsPanel"};
   staffPanel.classList.toggle("hidden", module !== "staff");
   staffViewPanel.classList.toggle("hidden", module !== "staff");
   staffEditPanel.classList.add("hidden");
   attendancePanel.classList.toggle("hidden", module !== "attendance");
-  if (module === "staff") {
-    placeholderNotice.classList.add("hidden");
-    loadStaffMaster(0);
-  } else if (module === "attendance") {
-    placeholderNotice.classList.add("hidden");
-    resetAttendanceSelection();
-  } else {
-    placeholderNotice.classList.remove("hidden");
-  }
+  Object.entries(panelMap).forEach(([key,id])=>document.getElementById(id).classList.toggle("hidden",module!==key));
+  placeholderNotice.classList.add("hidden");
+  if(module === "staff") loadStaffMaster(0);
+  if(module === "attendance") resetAttendanceSelection();
+  if(module === "duty") document.getElementById("dutyDate").value ||= indiaToday();
+  if(module === "view") document.getElementById("viewAttendanceDate").value ||= indiaToday();
+  if(module === "reports") document.getElementById("reportDate").value ||= indiaToday();
+  if(module === "admins") renderPermissionGrid();
+  if(module === "settings") loadPortalAccess();
 }
 
 document.querySelectorAll("[data-module]").forEach(button=>{
@@ -1138,10 +1181,11 @@ async function loadStaffMaster(offset=0) {
   body.innerHTML = '<tr><td colspan="8" style="padding:15px;text-align:center">Loading Staff Master...</td></tr>';
   setStaffListMessage("Staff records लोड हो रहे हैं...");
   try {
-    const {data,error} = await db.rpc("get_staff_master_records", {
+    const {data,error} = await db.rpc("get_staff_master_records_secured", {
       p_search: staffCurrentSearch || null,
       p_limit: STAFF_PAGE_SIZE,
-      p_offset: staffCurrentOffset
+      p_offset: staffCurrentOffset,
+      p_include_inactive: false
     });
     if(error) throw error;
     staffCurrentRows = Array.isArray(data) ? data : [];
@@ -1483,6 +1527,96 @@ document.getElementById("logoutBtn").addEventListener("click",async()=>{
   loginBtn.textContent = "➜ LOGIN";
   loginMessage.textContent = "";
 });
+
+
+// ACCESS CONTROL + DUTY / ATTENDANCE VIEW / REPORTS / ADMIN MANAGEMENT
+const MODULES = ["DASHBOARD","STAFF_MASTER","ATTENDANCE","DUTY","REPORTS","ADMIN_MANAGEMENT","SYSTEM_SETTINGS"];
+const MODULE_LABELS = {DASHBOARD:"Dashboard",STAFF_MASTER:"Staff Master",ATTENDANCE:"Attendance",DUTY:"Duty Assignment",REPORTS:"Reports",ADMIN_MANAGEMENT:"Admin Management",SYSTEM_SETTINGS:"System Settings"};
+let portalAccess = null;
+let lastAttendanceRows = [];
+function indiaToday(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
+function statusText(id,msg,color="#52657f"){const el=document.getElementById(id);if(el){el.textContent=msg;el.style.color=color;}}
+function hasPermission(module,action="view"){
+  if(currentUserRole==="SUPERADMIN") return true;
+  return !!portalAccess?.permissions?.[module]?.[action];
+}
+async function loadPortalAccess(){
+  const {data,error}=await db.rpc("get_my_portal_access");
+  if(error) throw error;
+  portalAccess=data;
+  currentUserRole=data.role;
+  applyModuleAccess();
+  const box=document.getElementById("settingsInfo");
+  if(box) box.textContent=`Role: ${data.role} | All access: ${data.all_access?"Yes":"No"} | Permissions loaded from secure backend.`;
+  return data;
+}
+function applyModuleAccess(){
+  document.querySelectorAll("[data-module]").forEach(el=>{
+    const key=({dashboard:"DASHBOARD",staff:"STAFF_MASTER",attendance:"ATTENDANCE",duty:"DUTY",view:"ATTENDANCE",reports:"REPORTS",admins:"ADMIN_MANAGEMENT",settings:"SYSTEM_SETTINGS"})[el.dataset.module];
+    el.classList.toggle("hidden",!hasPermission(key,"view"));
+  });
+}
+const permissionGrid=document.getElementById("newAdminPermissionGrid");
+function renderPermissionGrid(){
+  if(!permissionGrid || permissionGrid.dataset.ready) return;
+  permissionGrid.dataset.ready="1";
+  permissionGrid.innerHTML='<div><b>Module</b></div><div>View</div><div>Add</div><div>Edit</div><div>Delete</div>';
+  MODULES.forEach(m=>{
+    const name=document.createElement("div");name.textContent=MODULE_LABELS[m];permissionGrid.appendChild(name);
+    ["view","create","edit","delete"].forEach(a=>{const cell=document.createElement("div");const cb=document.createElement("input");cb.type="checkbox";cb.dataset.module=m;cb.dataset.action=a;if(a!=="view") cb.title="Action permission";cell.appendChild(cb);permissionGrid.appendChild(cell);});
+  });
+}
+function collectPermissions(){
+  return MODULES.map(module=>{const row={module};["view","create","edit","delete"].forEach(action=>{row[action]=!!permissionGrid.querySelector(`input[data-module="${module}"][data-action="${action}"]`)?.checked;});return row;}).filter(p=>p.view||p.create||p.edit||p.delete);
+}
+async function createAdmin(){
+  if(currentUserRole!=="SUPERADMIN") throw new Error("Only SUPERADMIN can create Admin accounts.");
+  const email=document.getElementById("newAdminEmail").value.trim();
+  const password=document.getElementById("newAdminPassword").value;
+  if(password.length<12) throw new Error("Temporary password कम-से-कम 12 characters का होना चाहिए।");
+  const permissions=collectPermissions();
+  if(!permissions.length) throw new Error("कम-से-कम एक permission चुनें।");
+  const {data,error}=await db.functions.invoke("admin-create-user",{body:{email,password,permissions}});
+  if(error) throw error;
+  if(!data?.success) throw new Error(data?.message||"Admin create failed");
+  document.getElementById("newAdminEmail").value="";document.getElementById("newAdminPassword").value="";
+  statusText("adminMessage",`✔ Admin created: ${data.email}. Temporary password को सुरक्षित तरीके से साझा करें।`,"green");
+}
+document.getElementById("createAdminBtn").addEventListener("click",async()=>{const b=document.getElementById("createAdminBtn");b.disabled=true;statusText("adminMessage","Admin account create हो रहा है...");try{await createAdmin();}catch(e){statusText("adminMessage","Error: "+(e.message||e),"red");}finally{b.disabled=false;}});
+document.getElementById("refreshAccessBtn").addEventListener("click",async()=>{try{await loadPortalAccess();}catch(e){statusText("settingsInfo",e.message,"red");}});
+
+async function dutyAction(rpc,args){const {data,error}=await db.rpc(rpc,args);if(error)throw error;return data;}
+async function loadDuty(){
+ const date=document.getElementById("dutyDate").value;if(!date)throw new Error("Duty date चुनें।");
+ const {data,error}=await db.rpc("get_duty_assignments",{p_duty_date:date,p_search:null});if(error)throw error;
+ const rows=Array.isArray(data)?data:[];document.getElementById("dutyRows").innerHTML=rows.length?rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.tag_id??r.staff_tag_id??"")}</td><td>${escapeHtml(r.staff_name??r.name??[r.ef_first_name,r.ef_middle_name,r.ef_last_name].filter(Boolean).join(" "))}</td><td>${escapeHtml(r.ef_role??r.role??"")}</td><td>${escapeHtml(r.duty_date??date)}</td></tr>`).join(""):'<tr><td colspan="5">इस तारीख पर Duty नहीं मिली।</td></tr>';
+ statusText("dutyMessage",`${date}: ${rows.length} duty records`,"green");
+}
+document.getElementById("dutyLoadBtn").addEventListener("click",async()=>{try{await loadDuty();}catch(e){statusText("dutyMessage",e.message,"red");}});
+document.getElementById("dutyAssignBtn").addEventListener("click",async()=>{try{const tag=document.getElementById("dutyTag").value.trim().toUpperCase(),date=document.getElementById("dutyDate").value;if(!tag||!date)throw new Error("Tag ID और Date भरें।");await dutyAction("assign_staff_duty",{p_tag_id:tag,p_duty_date:date});statusText("dutyMessage",`${tag} duty assigned.`,"green");await loadDuty();}catch(e){statusText("dutyMessage",e.message,"red");}});
+document.getElementById("dutyReplaceBtn").addEventListener("click",async()=>{try{const oldTag=document.getElementById("dutyOldTag").value.trim().toUpperCase(),newTag=document.getElementById("dutyNewTag").value.trim().toUpperCase(),date=document.getElementById("dutyDate").value;if(!oldTag||!newTag||!date)throw new Error("Old Tag, New Tag और Date भरें।");await dutyAction("replace_staff_duty",{p_old_tag_id:oldTag,p_new_tag_id:newTag,p_duty_date:date});statusText("dutyMessage",`${oldTag} replaced with ${newTag}.`,"green");await loadDuty();}catch(e){statusText("dutyMessage",e.message,"red");}});
+document.getElementById("dutyRemoveBtn").addEventListener("click",async()=>{try{const tag=document.getElementById("dutyTag").value.trim().toUpperCase(),date=document.getElementById("dutyDate").value;if(!tag||!date)throw new Error("Tag ID और Date भरें।");if(!confirm(`${tag} की ${date} duty हटाएँ?`))return;await dutyAction("remove_staff_duty",{p_tag_id:tag,p_duty_date:date});statusText("dutyMessage",`${tag} duty removed.`,"green");await loadDuty();}catch(e){statusText("dutyMessage",e.message,"red");}});
+
+function renderDynamicTable(headId,bodyId,rows){
+ const head=document.getElementById(headId),body=document.getElementById(bodyId);if(!rows.length){head.innerHTML="";body.innerHTML='<tr><td>No records found.</td></tr>';return;}
+ const keys=Object.keys(rows[0]);head.innerHTML="<tr>"+keys.map(k=>`<th>${escapeHtml(k.replaceAll("_"," ").toUpperCase())}</th>`).join("")+"</tr>";
+ body.innerHTML=rows.map(r=>"<tr>"+keys.map(k=>`<td>${escapeHtml(r[k]??"")}</td>`).join("")+"</tr>").join("");
+}
+async function loadAttendanceView(){
+ const date=document.getElementById("viewAttendanceDate").value,search=document.getElementById("viewAttendanceSearch").value.trim()||null;if(!date)throw new Error("Attendance date चुनें।");
+ const {data,error}=await db.rpc("get_attendance_records",{p_attendance_date:date,p_search:search});if(error)throw error;
+ lastAttendanceRows=Array.isArray(data)?data:[];renderDynamicTable("attendanceViewHead","attendanceViewRows",lastAttendanceRows);statusText("viewAttendanceMessage",`${date}: ${lastAttendanceRows.length} records`,"green");
+}
+document.getElementById("loadAttendanceViewBtn").addEventListener("click",async()=>{try{await loadAttendanceView();}catch(e){statusText("viewAttendanceMessage",e.message,"red");}});
+function exportRowsXlsx(rows,name){if(!rows.length)throw new Error("Export के लिए कोई records नहीं हैं।");const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Attendance");XLSX.writeFile(wb,name);}
+document.getElementById("exportAttendanceBtn").addEventListener("click",()=>{try{exportRowsXlsx(lastAttendanceRows,`ADARSH_ATTENDANCE_${document.getElementById("viewAttendanceDate").value}.xlsx`);}catch(e){statusText("viewAttendanceMessage",e.message,"red");}});
+async function loadDailySummary(){const date=document.getElementById("reportDate").value;if(!date)throw new Error("Report date चुनें।");const {data,error}=await db.rpc("get_attendance_summary",{p_attendance_date:date});if(error)throw error;const row=Array.isArray(data)?data[0]:data;statusText("reportMessage",row?JSON.stringify(row):"No summary returned.","green");}
+document.getElementById("dailyReportBtn").addEventListener("click",async()=>{try{await loadDailySummary();}catch(e){statusText("reportMessage",e.message,"red");}});
+document.getElementById("dailyExportBtn").addEventListener("click",async()=>{try{const date=document.getElementById("reportDate").value;if(!date)throw new Error("Report date चुनें।");const {data,error}=await db.rpc("get_attendance_records",{p_attendance_date:date,p_search:null});if(error)throw error;exportRowsXlsx(Array.isArray(data)?data:[],`ADARSH_DAILY_REPORT_${date}.xlsx`);statusText("reportMessage","Excel report downloaded.","green");}catch(e){statusText("reportMessage",e.message,"red");}});
+
+// Session bootstrap: fetch server-side permissions before revealing portal modules.
+const originalShowDashboard=showDashboard;
+showDashboard=function(user,role){originalShowDashboard(user,role);loadPortalAccess().then(()=>showModule("dashboard")).catch(e=>{alert("Portal access could not be verified: "+e.message);db.auth.signOut();loginScreen.classList.remove("hidden");dashboardScreen.classList.add("hidden");});};
 
 restoreSession();
 </script>

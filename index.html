@@ -564,6 +564,7 @@ button{cursor:pointer}
             <input id="staffBatchId" type="text" value="4fd68c26-d671-4678-9912-0933d615dc6d" autocomplete="off">
           </div>
           <button class="quick q-blue" id="validateStaffBtn" type="button">Validate Staff Records</button>
+          <button class="quick q-green" id="importStaffBtn" type="button" disabled style="opacity:.55;cursor:not-allowed;margin-left:8px">Import Valid Records</button>
           <p id="staffImportMessage" role="status" style="overflow-wrap:anywhere"></p>
         </div>
         <div class="notice" id="modulePlaceholderNotice">
@@ -742,37 +743,127 @@ document.getElementById("backBtn").addEventListener("click",()=>{
   showModule("dashboard");
 });
 
-document.getElementById("validateStaffBtn").addEventListener("click", async () => {
-  const button = document.getElementById("validateStaffBtn");
-  const message = document.getElementById("staffImportMessage");
-  const batchId = document.getElementById("staffBatchId").value.trim();
+let validatedStaffBatchId = null;
+
+const staffBatchInput = document.getElementById("staffBatchId");
+const validateStaffButton = document.getElementById("validateStaffBtn");
+const importStaffButton = document.getElementById("importStaffBtn");
+const staffImportMessage = document.getElementById("staffImportMessage");
+
+function lockStaffImport() {
+  validatedStaffBatchId = null;
+  importStaffButton.disabled = true;
+  importStaffButton.style.opacity = ".55";
+  importStaffButton.style.cursor = "not-allowed";
+}
+
+staffBatchInput.addEventListener("input", lockStaffImport);
+
+async function callStaffImport(action, batchId) {
+  const { data, error } = await db.functions.invoke("staff-import", {
+    body: { action, batch_id: batchId }
+  });
+  if (error) throw error;
+  if (!data?.success) throw new Error(data?.error || `${action} failed`);
+  return data.result;
+}
+
+function getValidationCounts(result) {
+  const row = Array.isArray(result) ? result[0] : result;
+  if (!row) throw new Error("Validation response में कोई result नहीं मिला।");
+  return {
+    total: Number(row.total_rows ?? 0),
+    valid: Number(row.valid_rows ?? 0),
+    invalid: Number(row.invalid_rows ?? 0),
+    duplicates: Number(row.duplicate_rows ?? 0)
+  };
+}
+
+validateStaffButton.addEventListener("click", async () => {
+  const batchId = staffBatchInput.value.trim();
+  lockStaffImport();
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batchId)) {
-    message.style.color = "red";
-    message.textContent = "कृपया सही Import Batch ID डालें।";
+    staffImportMessage.style.color = "red";
+    staffImportMessage.textContent = "कृपया सही Import Batch ID डालें।";
     return;
   }
 
-  button.disabled = true;
-  button.textContent = "VALIDATING...";
-  message.style.color = "#174b83";
-  message.textContent = "SuperAdmin permission और Staff Records जाँचे जा रहे हैं...";
+  validateStaffButton.disabled = true;
+  validateStaffButton.textContent = "VALIDATING...";
+  staffImportMessage.style.color = "#174b83";
+  staffImportMessage.textContent = "SuperAdmin permission और Staff Records जाँचे जा रहे हैं...";
 
   try {
-    const { data, error } = await db.functions.invoke("staff-import", {
-      body: { action: "validate", batch_id: batchId }
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || "Validation failed");
+    const result = await callStaffImport("validate", batchId);
+    const counts = getValidationCounts(result);
+    staffImportMessage.style.color = counts.total > 0 && counts.valid === counts.total &&
+      counts.invalid === 0 && counts.duplicates === 0 ? "green" : "#b45309";
+    staffImportMessage.textContent =
+      `Validation: Total ${counts.total} | Valid ${counts.valid} | Invalid ${counts.invalid} | Duplicate ${counts.duplicates}`;
 
-    message.style.color = "green";
-    message.textContent = "Validation response: " + JSON.stringify(data.result);
+    if (counts.total > 0 && counts.valid === counts.total &&
+        counts.invalid === 0 && counts.duplicates === 0) {
+      validatedStaffBatchId = batchId;
+      importStaffButton.disabled = false;
+      importStaffButton.style.opacity = "1";
+      importStaffButton.style.cursor = "pointer";
+      staffImportMessage.textContent += " — Import के लिए तैयार।";
+    } else {
+      staffImportMessage.textContent += " — Records में समस्या है; Import बंद रखा गया है।";
+    }
   } catch (error) {
-    message.style.color = "red";
-    message.textContent = "Validation error: " + (error?.message || "Unknown error");
+    lockStaffImport();
+    staffImportMessage.style.color = "red";
+    staffImportMessage.textContent = "Validation error: " + (error?.message || "Unknown error");
   } finally {
-    button.disabled = false;
-    button.textContent = "Validate Staff Records";
+    validateStaffButton.disabled = false;
+    validateStaffButton.textContent = "Validate Staff Records";
+  }
+});
+
+importStaffButton.addEventListener("click", async () => {
+  const batchId = staffBatchInput.value.trim();
+  if (!validatedStaffBatchId || validatedStaffBatchId !== batchId) {
+    lockStaffImport();
+    staffImportMessage.style.color = "red";
+    staffImportMessage.textContent = "पहले इसी Batch ID की Validation दोबारा करें।";
+    return;
+  }
+
+  const confirmed = confirm(
+    "क्या आप इस Batch के सभी Valid Staff Records को Staff Master में Import करना चाहते हैं? यह प्रक्रिया डेटाबेस में रिकॉर्ड जोड़ेगी।"
+  );
+  if (!confirmed) return;
+
+  importStaffButton.disabled = true;
+  validateStaffButton.disabled = true;
+  importStaffButton.textContent = "IMPORTING...";
+  staffImportMessage.style.color = "#174b83";
+  staffImportMessage.textContent = "Import से पहले अंतिम Validation की जा रही है...";
+
+  try {
+    const validationResult = await callStaffImport("validate", batchId);
+    const counts = getValidationCounts(validationResult);
+    if (counts.total === 0 || counts.valid !== counts.total ||
+        counts.invalid !== 0 || counts.duplicates !== 0) {
+      throw new Error("अंतिम Validation सफल नहीं हुई। कोई रिकॉर्ड Import नहीं किया गया।");
+    }
+
+    staffImportMessage.textContent = "Validation सफल। Staff Master में Records Import हो रहे हैं...";
+    const importResult = await callStaffImport("import", batchId);
+    lockStaffImport();
+    staffImportMessage.style.color = "green";
+    staffImportMessage.textContent = "Import response: " + JSON.stringify(importResult);
+  } catch (error) {
+    lockStaffImport();
+    staffImportMessage.style.color = "red";
+    staffImportMessage.textContent = "Import error: " + (error?.message || "Unknown error");
+  } finally {
+    validateStaffButton.disabled = false;
+    validateStaffButton.textContent = "Validate Staff Records";
+    importStaffButton.textContent = "Import Valid Records";
+    importStaffButton.disabled = true;
   }
 });
 

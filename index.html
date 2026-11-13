@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ITRUST INFRATECH | Attendance Portal</title>
+  <title>ADARSH PARIKSHA KENDRA | Attendance Portal</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -37,13 +37,14 @@
       text-align: center;
       color: #123e70;
       margin: 0;
+      font-size: 23px;
     }
 
     .subtitle {
       text-align: center;
       color: #64748b;
       font-size: 13px;
-      margin: 10px 0 25px;
+      margin: 12px 0 25px;
       line-height: 1.6;
     }
 
@@ -110,7 +111,7 @@
 
   <div class="card">
 
-    <h2>ITRUST INFRATECH</h2>
+    <h2>ADARSH PARIKSHA KENDRA</h2>
 
     <div class="subtitle">
       MUZAFFARPUR<br>
@@ -148,7 +149,7 @@
     <div id="message" role="status" aria-live="polite"></div>
 
     <footer>
-      © 2026 ITRUST INFRATECH
+      © 2026 ADARSH PARIKSHA KENDRA
     </footer>
 
   </div>
@@ -190,7 +191,6 @@ loginForm.addEventListener("submit", async function(event) {
       .getElementById("password")
       .value;
 
-    // Supabase Authentication
     const { data, error } =
       await supabaseClient.auth.signInWithPassword({
         email: email,
@@ -201,7 +201,6 @@ loginForm.addEventListener("submit", async function(event) {
       throw error;
     }
 
-    // Get logged-in user's role
     const { data: roleData, error: roleError } =
       await supabaseClient
         .from("user_roles")
@@ -227,7 +226,8 @@ loginForm.addEventListener("submit", async function(event) {
     message.style.color = "green";
 
     message.textContent =
-      "LOGIN SUCCESSFUL! Role: " + roleData.role +
+      "LOGIN SUCCESSFUL! Role: " +
+      roleData.role +
       ". Dashboard setup is pending.";
 
     loginBtn.textContent = "LOGGED IN";

@@ -323,6 +323,13 @@ button{cursor:pointer}
   margin-top:20px;
   font-size:13px;
 }
+
+.camera-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:14px}
+.camera-box{background:#f4f8ff;border:1px solid #d5e2f4;border-radius:12px;padding:14px}
+.camera-box video,.camera-box canvas{width:100%;max-height:420px;object-fit:contain;background:#101827;border-radius:9px;display:block}
+.attendance-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.attendance-status{padding:12px;border-radius:9px;background:#f2f6fc;margin-top:12px;overflow-wrap:anywhere}
+
 @media(max-width:900px){
   .stats{grid-template-columns:repeat(2,1fr)}
   .modules{grid-template-columns:repeat(2,1fr)}
@@ -628,6 +635,45 @@ button{cursor:pointer}
           <button class="quick q-orange" id="cancelStaffEditBtn" type="button" style="margin-left:8px">Cancel</button>
         </div>
 
+        <div id="attendancePanel" class="panel hidden" style="margin-top:18px">
+          <h3>☑️ Daily Attendance — Live Camera Verification</h3>
+          <p>Tag ID डालकर Staff खोजें। Present के लिए Live Camera फोटो आवश्यक है। Absent के लिए फोटो आवश्यक नहीं है।</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+            <div class="field" style="flex:1;min-width:220px;margin-bottom:8px">
+              <label for="attendanceTagInput">Staff Tag ID</label>
+              <input id="attendanceTagInput" type="text" placeholder="उदाहरण: IIL12345" autocomplete="off" style="width:100%;padding:12px;border:1px solid #c9d5e8;border-radius:9px;text-transform:uppercase">
+            </div>
+            <button class="quick q-blue" id="attendanceFindBtn" type="button">Find Staff</button>
+          </div>
+          <div id="attendanceStaffInfo" class="attendance-status">अभी कोई Staff चयनित नहीं है।</div>
+          <div class="attendance-actions">
+            <button class="quick q-green" id="markPresentBtn" type="button" disabled>✔ Mark Present + Camera</button>
+            <button class="quick q-orange" id="markAbsentBtn" type="button" disabled>✖ Mark Absent</button>
+          </div>
+          <div id="cameraPanel" class="hidden">
+            <h4>📷 Live Camera — ADARSH PARIKSHA KENDRA</h4>
+            <p>चेहरा स्पष्ट रखें। Capture के बाद watermark लगेगा और फोटो Google Drive में सुरक्षित होगी।</p>
+            <div class="camera-wrap">
+              <div class="camera-box">
+                <b>Live Camera</b>
+                <video id="attendanceVideo" autoplay playsinline muted></video>
+              </div>
+              <div class="camera-box">
+                <b>Photo Preview</b>
+                <canvas id="attendanceCanvas" class="hidden"></canvas>
+                <div id="cameraPreviewHint" style="padding:35px 10px;text-align:center;color:#65748b">Capture के बाद फोटो यहाँ दिखाई देगी।</div>
+              </div>
+            </div>
+            <div class="attendance-actions">
+              <button class="quick q-blue" id="capturePhotoBtn" type="button">📸 Capture Photo</button>
+              <button class="quick q-green" id="uploadPhotoBtn" type="button" disabled>⬆ Upload Photo</button>
+              <button class="quick q-orange" id="retakePhotoBtn" type="button" disabled>↻ Retake</button>
+              <button class="quick" id="stopCameraBtn" type="button" style="background:#64748b;color:white">Stop Camera</button>
+            </div>
+          </div>
+          <div id="attendanceMessage" class="attendance-status" role="status">Attendance action के लिए Staff खोजें।</div>
+        </div>
+
         <div class="notice" id="modulePlaceholderNotice">
           This module is being configured. Your database records are not modified from this screen.
         </div>
@@ -789,17 +835,19 @@ function showModule(module) {
   const staffPanel = document.getElementById("staffImportPanel");
   const staffViewPanel = document.getElementById("staffMasterViewPanel");
   const staffEditPanel = document.getElementById("staffEditPanel");
+  const attendancePanel = document.getElementById("attendancePanel");
   const placeholderNotice = document.getElementById("modulePlaceholderNotice");
+  staffPanel.classList.toggle("hidden", module !== "staff");
+  staffViewPanel.classList.toggle("hidden", module !== "staff");
+  staffEditPanel.classList.add("hidden");
+  attendancePanel.classList.toggle("hidden", module !== "attendance");
   if (module === "staff") {
-    staffPanel.classList.remove("hidden");
-    staffViewPanel.classList.remove("hidden");
-    staffEditPanel.classList.add("hidden");
     placeholderNotice.classList.add("hidden");
     loadStaffMaster(0);
+  } else if (module === "attendance") {
+    placeholderNotice.classList.add("hidden");
+    resetAttendanceSelection();
   } else {
-    staffPanel.classList.add("hidden");
-    staffViewPanel.classList.add("hidden");
-    staffEditPanel.classList.add("hidden");
     placeholderNotice.classList.remove("hidden");
   }
 }
@@ -1187,11 +1235,240 @@ document.getElementById("saveStaffEditBtn").addEventListener("click",async()=>{
   } finally { btn.disabled=false; btn.textContent="Save Update"; }
 });
 
+// DAILY ATTENDANCE + LIVE CAMERA PHOTO UPLOAD
+let selectedAttendanceStaff = null;
+let attendanceCameraStream = null;
+let capturedAttendanceDataUrl = null;
+let attendanceAlreadyMarkedPresent = false;
+
+const attendanceTagInput = document.getElementById("attendanceTagInput");
+const attendanceFindBtn = document.getElementById("attendanceFindBtn");
+const attendanceStaffInfo = document.getElementById("attendanceStaffInfo");
+const attendanceMessage = document.getElementById("attendanceMessage");
+const markPresentBtn = document.getElementById("markPresentBtn");
+const markAbsentBtn = document.getElementById("markAbsentBtn");
+const cameraPanel = document.getElementById("cameraPanel");
+const attendanceVideo = document.getElementById("attendanceVideo");
+const attendanceCanvas = document.getElementById("attendanceCanvas");
+const capturePhotoBtn = document.getElementById("capturePhotoBtn");
+const uploadPhotoBtn = document.getElementById("uploadPhotoBtn");
+const retakePhotoBtn = document.getElementById("retakePhotoBtn");
+
+function setAttendanceMessage(message, color="#52657f") {
+  attendanceMessage.style.color = color;
+  attendanceMessage.textContent = message;
+}
+
+function resetAttendanceSelection() {
+  stopAttendanceCamera();
+  selectedAttendanceStaff = null;
+  capturedAttendanceDataUrl = null;
+  attendanceAlreadyMarkedPresent = false;
+  attendanceStaffInfo.textContent = "अभी कोई Staff चयनित नहीं है।";
+  markPresentBtn.disabled = true;
+  markAbsentBtn.disabled = true;
+  cameraPanel.classList.add("hidden");
+  attendanceCanvas.classList.add("hidden");
+  document.getElementById("cameraPreviewHint").classList.remove("hidden");
+  uploadPhotoBtn.disabled = true;
+  retakePhotoBtn.disabled = true;
+  setAttendanceMessage("Tag ID डालकर Find Staff दबाएँ।");
+}
+
+async function findAttendanceStaff() {
+  const tagId = attendanceTagInput.value.trim().toUpperCase();
+  if (!/^IIL[0-9]+$/.test(tagId)) throw new Error("सही Tag ID डालें (उदाहरण: IIL12345)।");
+  setAttendanceMessage("Staff Master में खोज रहे हैं...");
+  markPresentBtn.disabled = true;
+  markAbsentBtn.disabled = true;
+  const {data,error} = await db.rpc("get_staff_master_records", {
+    p_search: tagId,
+    p_limit: 50,
+    p_offset: 0
+  });
+  if (error) throw error;
+  const rows = Array.isArray(data) ? data : [];
+  const staff = rows.find(row => String(row.tag_id || "").toUpperCase() === tagId);
+  if (!staff) throw new Error("यह Tag ID Staff Master में नहीं मिला।");
+  selectedAttendanceStaff = {
+    id: staff.id,
+    tag_id: staff.tag_id,
+    name: [staff.ef_first_name,staff.ef_middle_name,staff.ef_last_name].filter(Boolean).join(" ")
+  };
+  attendanceStaffInfo.textContent = `Selected Staff: ${selectedAttendanceStaff.name || "Name not available"} | Tag ID: ${selectedAttendanceStaff.tag_id}`;
+  markPresentBtn.disabled = false;
+  markAbsentBtn.disabled = false;
+  setAttendanceMessage("Staff मिल गया। Present या Absent चुनें।", "green");
+}
+
+attendanceFindBtn.addEventListener("click", async () => {
+  attendanceFindBtn.disabled = true;
+  try { await findAttendanceStaff(); }
+  catch(error) { selectedAttendanceStaff = null; attendanceStaffInfo.textContent = "Staff नहीं मिला।"; setAttendanceMessage(error.message || "Staff search failed", "red"); }
+  finally { attendanceFindBtn.disabled = false; }
+});
+
+attendanceTagInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); attendanceFindBtn.click(); }
+});
+
+async function markAttendance(status) {
+  if (!selectedAttendanceStaff) throw new Error("पहले Staff खोजें।");
+  const {data,error} = await db.rpc("mark_staff_attendance", {
+    p_tag_id: selectedAttendanceStaff.tag_id,
+    p_status: status
+  });
+  if (error) throw error;
+  return data;
+}
+
+markAbsentBtn.addEventListener("click", async () => {
+  markAbsentBtn.disabled = true;
+  markPresentBtn.disabled = true;
+  setAttendanceMessage("Absent attendance save हो रही है...");
+  try {
+    await markAttendance("A");
+    setAttendanceMessage(`✔ ${selectedAttendanceStaff.tag_id} की Absent attendance save हो गई।`, "green");
+  } catch(error) {
+    setAttendanceMessage("Absent save नहीं हुई: " + (error.message || "Unknown error"), "red");
+  } finally {
+    markAbsentBtn.disabled = false;
+    markPresentBtn.disabled = false;
+  }
+});
+
+markPresentBtn.addEventListener("click", async () => {
+  markPresentBtn.disabled = true;
+  markAbsentBtn.disabled = true;
+  setAttendanceMessage("Present attendance record तैयार हो रहा है...");
+  try {
+    await markAttendance("P");
+    attendanceAlreadyMarkedPresent = true;
+    cameraPanel.classList.remove("hidden");
+    await startAttendanceCamera();
+    setAttendanceMessage("Present दर्ज हो गया। अब Live Camera से फोटो Capture करें।", "green");
+  } catch(error) {
+    setAttendanceMessage("Present/Camera शुरू नहीं हुआ: " + (error.message || "Unknown error"), "red");
+    markPresentBtn.disabled = false;
+    markAbsentBtn.disabled = false;
+  }
+});
+
+async function startAttendanceCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("इस Browser में Camera API उपलब्ध नहीं है। HTTPS पर खोलें।");
+  stopAttendanceCamera();
+  attendanceCameraStream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+  });
+  attendanceVideo.srcObject = attendanceCameraStream;
+  await attendanceVideo.play();
+}
+
+function stopAttendanceCamera() {
+  if (attendanceCameraStream) {
+    attendanceCameraStream.getTracks().forEach(track => track.stop());
+    attendanceCameraStream = null;
+  }
+  attendanceVideo.srcObject = null;
+}
+
+function canvasToTargetJpeg(canvas) {
+  // The Apps Script photo server accepts JPEG images between 40 KB and 80 KB.
+  let quality = 0.82;
+  let result = canvas.toDataURL("image/jpeg", quality);
+  let bytes = Math.ceil((result.length - result.indexOf(",") - 1) * 3 / 4);
+  while (bytes > 80 * 1024 && quality > 0.35) {
+    quality -= 0.07;
+    result = canvas.toDataURL("image/jpeg", quality);
+    bytes = Math.ceil((result.length - result.indexOf(",") - 1) * 3 / 4);
+  }
+  if (bytes < 40 * 1024 || bytes > 80 * 1024) {
+    throw new Error(`फोटो का आकार ${Math.round(bytes/1024)} KB है। सर्वर की सीमा 40–80 KB है। बेहतर रोशनी में दोबारा Capture करें।`);
+  }
+  return result;
+}
+
+capturePhotoBtn.addEventListener("click", () => {
+  try {
+    if (!attendanceVideo.videoWidth || !attendanceVideo.videoHeight) throw new Error("Camera अभी तैयार नहीं है।");
+    const maxWidth = 900;
+    const scale = Math.min(1, maxWidth / attendanceVideo.videoWidth);
+    const width = Math.round(attendanceVideo.videoWidth * scale);
+    const height = Math.round(attendanceVideo.videoHeight * scale);
+    attendanceCanvas.width = width;
+    attendanceCanvas.height = height;
+    const ctx = attendanceCanvas.getContext("2d");
+    ctx.drawImage(attendanceVideo, 0, 0, width, height);
+    // Watermark only: ADARSH PARIKSHA KENDRA
+    const fontSize = Math.max(18, Math.round(width * 0.035));
+    const bandHeight = Math.round(fontSize * 1.8);
+    ctx.fillStyle = "rgba(0,0,0,0.48)";
+    ctx.fillRect(0, height-bandHeight, width, bandHeight);
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("ADARSH PARIKSHA KENDRA", width/2, height-bandHeight/2);
+    capturedAttendanceDataUrl = canvasToTargetJpeg(attendanceCanvas);
+    attendanceCanvas.classList.remove("hidden");
+    document.getElementById("cameraPreviewHint").classList.add("hidden");
+    uploadPhotoBtn.disabled = false;
+    retakePhotoBtn.disabled = false;
+    setAttendanceMessage("फोटो Capture हो गई और watermark लग गया। Upload Photo दबाएँ।", "green");
+  } catch(error) {
+    capturedAttendanceDataUrl = null;
+    uploadPhotoBtn.disabled = true;
+    setAttendanceMessage(error.message || "Photo capture failed", "red");
+  }
+});
+
+retakePhotoBtn.addEventListener("click", () => {
+  capturedAttendanceDataUrl = null;
+  attendanceCanvas.classList.add("hidden");
+  document.getElementById("cameraPreviewHint").classList.remove("hidden");
+  uploadPhotoBtn.disabled = true;
+  setAttendanceMessage("दोबारा Capture करें।");
+});
+
+uploadPhotoBtn.addEventListener("click", async () => {
+  if (!selectedAttendanceStaff || !attendanceAlreadyMarkedPresent || !capturedAttendanceDataUrl) {
+    setAttendanceMessage("पहले Present attendance और photo capture पूरा करें।", "red");
+    return;
+  }
+  uploadPhotoBtn.disabled = true;
+  capturePhotoBtn.disabled = true;
+  setAttendanceMessage("फोटो सुरक्षित रूप से Google Drive में Upload हो रही है...");
+  try {
+    const {data,error} = await db.functions.invoke("attendance-photo-upload", {
+      body: { tagId: selectedAttendanceStaff.tag_id, dataUrl: capturedAttendanceDataUrl }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message || "Photo upload failed");
+    setAttendanceMessage(`✔ Photo Google Drive में Upload हो गई। Tag ID: ${data.tagId} | Status: ${data.photoStatus}`, "green");
+    capturedAttendanceDataUrl = null;
+    stopAttendanceCamera();
+    cameraPanel.classList.add("hidden");
+    attendanceAlreadyMarkedPresent = false;
+  } catch(error) {
+    setAttendanceMessage("Photo upload failed: " + (error.message || "Unknown error") + " — फोटो दोबारा Capture/Upload करें।", "red");
+    uploadPhotoBtn.disabled = false;
+  } finally {
+    capturePhotoBtn.disabled = false;
+  }
+});
+
+document.getElementById("stopCameraBtn").addEventListener("click", () => {
+  stopAttendanceCamera();
+  setAttendanceMessage("Camera बंद कर दिया गया। Present attendance दर्ज है; फोटो Upload करने के लिए Camera दोबारा खोलना होगा।", "#b45309");
+});
+
 document.getElementById("menuBtn").addEventListener("click",()=>{
   document.getElementById("sidebar").classList.toggle("hidden");
 });
 
 document.getElementById("logoutBtn").addEventListener("click",async()=>{
+  stopAttendanceCamera();
   const {error} = await db.auth.signOut();
 
   if(error) {

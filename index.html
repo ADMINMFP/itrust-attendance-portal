@@ -355,6 +355,16 @@ button{cursor:pointer}
   .module p{font-size:11px}
   .bottom-grid{grid-template-columns:1fr}
 }
+
+.staff-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.staff-toolbar input{flex:1;min-width:220px;padding:12px;border:1px solid #c9d5e8;border-radius:9px}
+.staff-table-wrap{overflow-x:auto;margin-top:14px}
+.staff-table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.staff-table th,.staff-table td{padding:11px 10px;border:1px solid #dbe5f2;text-align:left}
+.staff-table th{background:#0753a9;color:#fff}
+.staff-table tr:nth-child(even){background:#f5f8fd}
+.staff-status{font-size:13px;margin-top:10px;overflow-wrap:anywhere}
+
 </style>
 </head>
 
@@ -567,6 +577,22 @@ button{cursor:pointer}
           <button class="quick q-green" id="importStaffBtn" type="button" disabled style="opacity:.55;cursor:not-allowed;margin-left:8px">Import Valid Records</button>
           <p id="staffImportMessage" role="status" style="overflow-wrap:anywhere"></p>
         </div>
+        <div id="staffListPanel" class="panel hidden" style="margin-top:18px">
+          <h3>Staff Master — Staff Records</h3>
+          <p>Tag ID या Staff Name से रिकॉर्ड खोजें। संवेदनशील Aadhaar और निजी जानकारी यहाँ प्रदर्शित नहीं होगी।</p>
+          <div class="staff-toolbar">
+            <input id="staffSearchInput" type="search" placeholder="Search by Tag ID or Staff Name" autocomplete="off">
+            <button class="quick q-blue" id="searchStaffBtn" type="button">Search</button>
+            <button class="quick q-purple" id="refreshStaffBtn" type="button">Refresh</button>
+          </div>
+          <div id="staffListStatus" class="staff-status" role="status"></div>
+          <div class="staff-table-wrap">
+            <table class="staff-table">
+              <thead><tr><th>SL</th><th>Tag ID</th><th>Staff Name</th><th>City</th><th>Role</th></tr></thead>
+              <tbody id="staffTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
         <div class="notice" id="modulePlaceholderNotice">
           This module is being configured. Your database records are not modified from this screen.
         </div>
@@ -723,12 +749,16 @@ function showModule(module) {
   document.getElementById("moduleDescription").textContent = details[1];
 
   const staffPanel = document.getElementById("staffImportPanel");
+  const staffListPanel = document.getElementById("staffListPanel");
   const placeholderNotice = document.getElementById("modulePlaceholderNotice");
   if (module === "staff") {
     staffPanel.classList.remove("hidden");
+    staffListPanel.classList.remove("hidden");
     placeholderNotice.classList.add("hidden");
+    loadStaffRecords();
   } else {
     staffPanel.classList.add("hidden");
+    staffListPanel.classList.add("hidden");
     placeholderNotice.classList.remove("hidden");
   }
 }
@@ -865,6 +895,67 @@ importStaffButton.addEventListener("click", async () => {
     importStaffButton.textContent = "Import Valid Records";
     importStaffButton.disabled = true;
   }
+});
+
+
+const staffSearchInput = document.getElementById("staffSearchInput");
+const staffTableBody = document.getElementById("staffTableBody");
+const staffListStatus = document.getElementById("staffListStatus");
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  })[char]);
+}
+
+async function loadStaffRecords() {
+  staffListStatus.style.color = "#174b83";
+  staffListStatus.textContent = "Staff records लोड हो रहे हैं...";
+  staffTableBody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+
+  try {
+    const search = staffSearchInput.value.trim();
+    const { data, error } = await db.rpc("get_staff_master_list", {
+      p_search: search || null
+    });
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) {
+      staffTableBody.innerHTML = '<tr><td colspan="5">कोई Staff Record नहीं मिला।</td></tr>';
+      staffListStatus.style.color = "#64748b";
+      staffListStatus.textContent = "Total Records: 0";
+      return;
+    }
+
+    staffTableBody.innerHTML = rows.map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(row.tag_id)}</td>
+        <td>${escapeHtml(row.staff_name)}</td>
+        <td>${escapeHtml(row.ef_city)}</td>
+        <td>${escapeHtml(row.ef_role)}</td>
+      </tr>
+    `).join("");
+
+    staffListStatus.style.color = "green";
+    staffListStatus.textContent = `Total Records: ${rows.length}`;
+  } catch (error) {
+    staffTableBody.innerHTML = '<tr><td colspan="5">Records लोड नहीं हो सके।</td></tr>';
+    staffListStatus.style.color = "red";
+    staffListStatus.textContent =
+      "Staff List Error: " + (error?.message || "Unknown error") +
+      " — पहले Supabase SQL function deploy करें।";
+  }
+}
+
+document.getElementById("searchStaffBtn").addEventListener("click", loadStaffRecords);
+document.getElementById("refreshStaffBtn").addEventListener("click", () => {
+  staffSearchInput.value = "";
+  loadStaffRecords();
+});
+staffSearchInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") loadStaffRecords();
 });
 
 document.getElementById("menuBtn").addEventListener("click",()=>{

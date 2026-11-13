@@ -7,6 +7,7 @@
 <title>ADARSH PARIKSHA KENDRA | Attendance Portal</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
 :root {
@@ -355,16 +356,6 @@ button{cursor:pointer}
   .module p{font-size:11px}
   .bottom-grid{grid-template-columns:1fr}
 }
-
-.staff-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
-.staff-toolbar input{flex:1;min-width:220px;padding:12px;border:1px solid #c9d5e8;border-radius:9px}
-.staff-table-wrap{overflow-x:auto;margin-top:14px}
-.staff-table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
-.staff-table th,.staff-table td{padding:11px 10px;border:1px solid #dbe5f2;text-align:left}
-.staff-table th{background:#0753a9;color:#fff}
-.staff-table tr:nth-child(even){background:#f5f8fd}
-.staff-status{font-size:13px;margin-top:10px;overflow-wrap:anywhere}
-
 </style>
 </head>
 
@@ -567,31 +558,22 @@ button{cursor:pointer}
         <h2 id="moduleTitle">Module</h2>
         <p id="moduleDescription"></p>
         <div id="staffImportPanel" class="panel hidden" style="margin-top:18px">
-          <h3>Staff Master — Import Validation</h3>
-          <p>CSV staging batch की जाँच करें। इस चरण में Staff Master में कोई रिकॉर्ड Import नहीं होगा।</p>
+          <h3>Staff Master — Excel Bulk Import</h3>
+          <p>पहले Excel Template डाउनलोड करें। उसी 18-column format में Staff Records भरकर .xlsx फाइल Upload करें।</p>
+          <button class="quick q-blue" id="downloadStaffTemplateBtn" type="button">↓ Download Excel Template</button>
           <div class="field">
-            <label for="staffBatchId">Import Batch ID</label>
-            <input id="staffBatchId" type="text" value="4fd68c26-d671-4678-9912-0933d615dc6d" autocomplete="off">
+            <label for="staffExcelFile">Select Staff Excel File (.xlsx / .xls)</label>
+            <input id="staffExcelFile" type="file" accept=".xlsx,.xls" />
           </div>
-          <button class="quick q-blue" id="validateStaffBtn" type="button">Validate Staff Records</button>
+          <p id="staffFileInfo" style="font-size:13px;color:#52657f">अभी कोई Excel File select नहीं है।</p>
+          <button class="quick q-purple" id="uploadStaffExcelBtn" type="button">Upload Excel & Prepare Validation</button>
+          <div class="field" style="margin-top:20px">
+            <label for="staffBatchId">Import Batch ID (Automatic)</label>
+            <input id="staffBatchId" type="text" readonly autocomplete="off" placeholder="Excel upload के बाद बनेगा">
+          </div>
+          <button class="quick q-blue" id="validateStaffBtn" type="button" disabled style="opacity:.55;cursor:not-allowed">Validate Staff Records</button>
           <button class="quick q-green" id="importStaffBtn" type="button" disabled style="opacity:.55;cursor:not-allowed;margin-left:8px">Import Valid Records</button>
           <p id="staffImportMessage" role="status" style="overflow-wrap:anywhere"></p>
-        </div>
-        <div id="staffListPanel" class="panel hidden" style="margin-top:18px">
-          <h3>Staff Master — Staff Records</h3>
-          <p>Tag ID या Staff Name से रिकॉर्ड खोजें। संवेदनशील Aadhaar और निजी जानकारी यहाँ प्रदर्शित नहीं होगी।</p>
-          <div class="staff-toolbar">
-            <input id="staffSearchInput" type="search" placeholder="Search by Tag ID or Staff Name" autocomplete="off">
-            <button class="quick q-blue" id="searchStaffBtn" type="button">Search</button>
-            <button class="quick q-purple" id="refreshStaffBtn" type="button">Refresh</button>
-          </div>
-          <div id="staffListStatus" class="staff-status" role="status"></div>
-          <div class="staff-table-wrap">
-            <table class="staff-table">
-              <thead><tr><th>SL</th><th>Tag ID</th><th>Staff Name</th><th>City</th><th>Role</th></tr></thead>
-              <tbody id="staffTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
-            </table>
-          </div>
         </div>
         <div class="notice" id="modulePlaceholderNotice">
           This module is being configured. Your database records are not modified from this screen.
@@ -749,16 +731,12 @@ function showModule(module) {
   document.getElementById("moduleDescription").textContent = details[1];
 
   const staffPanel = document.getElementById("staffImportPanel");
-  const staffListPanel = document.getElementById("staffListPanel");
   const placeholderNotice = document.getElementById("modulePlaceholderNotice");
   if (module === "staff") {
     staffPanel.classList.remove("hidden");
-    staffListPanel.classList.remove("hidden");
     placeholderNotice.classList.add("hidden");
-    loadStaffRecords();
   } else {
     staffPanel.classList.add("hidden");
-    staffListPanel.classList.add("hidden");
     placeholderNotice.classList.remove("hidden");
   }
 }
@@ -774,11 +752,133 @@ document.getElementById("backBtn").addEventListener("click",()=>{
 });
 
 let validatedStaffBatchId = null;
+let uploadedStaffBatchId = null;
 
+const staffExcelInput = document.getElementById("staffExcelFile");
+const uploadStaffExcelButton = document.getElementById("uploadStaffExcelBtn");
+const staffFileInfo = document.getElementById("staffFileInfo");
 const staffBatchInput = document.getElementById("staffBatchId");
 const validateStaffButton = document.getElementById("validateStaffBtn");
 const importStaffButton = document.getElementById("importStaffBtn");
 const staffImportMessage = document.getElementById("staffImportMessage");
+
+const STAFF_EXCEL_COLUMNS = [
+  ["Tag ID", "tag_id"],
+  ["EF REGION", "ef_region"],
+  ["EF STATE", "ef_state"],
+  ["EF CITY", "ef_city"],
+  ["EF VENUE NAME", "ef_venue_name"],
+  ["EF FIRST NAME", "ef_first_name"],
+  ["EF MIDDLE NAME", "ef_middle_name"],
+  ["EF LAST NAME", "ef_last_name"],
+  ["EF DOB", "ef_dob"],
+  ["EF GENDER", "ef_gender"],
+  ["EF PHONENUMBER", "ef_phonenumber"],
+  ["EF AADHAR NUMBER", "ef_aadhar_number"],
+  ["EF FATHER NAME", "ef_father_name"],
+  ["EF MOTHER NAME", "ef_mother_name"],
+  ["EF EMAIL ID", "ef_email_id"],
+  ["EF QUALIFICATION", "ef_qualification"],
+  ["EF PERMANENT ADDRESS", "ef_permanent_address"],
+  ["EF ROLE", "ef_role"]
+];
+
+function normalizeExcelHeader(value) {
+  return String(value ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function downloadStaffTemplate() {
+  const headers = STAFF_EXCEL_COLUMNS.map(column => column[0]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, Array(headers.length).fill("")]);
+  ws["!cols"] = headers.map((h, i) => ({ wch: Math.max(16, h.length + 3) }));
+  // Tag ID and phone/Aadhaar columns are intended to be entered as text.
+  ws["!autofilter"] = { ref: `A1:R2` };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "STAFF MASTER");
+  XLSX.writeFile(wb, "ADARSH_PARIKSHA_KENDRA_STAFF_TEMPLATE.xlsx");
+}
+
+document.getElementById("downloadStaffTemplateBtn").addEventListener("click", downloadStaffTemplate);
+
+staffExcelInput.addEventListener("change", () => {
+  lockStaffImport();
+  uploadedStaffBatchId = null;
+  staffBatchInput.value = "";
+  validateStaffButton.disabled = true;
+  validateStaffButton.style.opacity = ".55";
+  const file = staffExcelInput.files?.[0];
+  staffFileInfo.textContent = file ? `Selected: ${file.name} (${Math.ceil(file.size / 1024)} KB)` : "अभी कोई Excel File select नहीं है।";
+});
+
+async function uploadStaffExcel() {
+  const file = staffExcelInput.files?.[0];
+  if (!file) throw new Error("पहले Excel File select करें।");
+  if (!/\.(xlsx|xls)$/i.test(file.name)) throw new Error("केवल .xlsx या .xls Excel File स्वीकार है।");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Excel File 10 MB से छोटी होनी चाहिए।");
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) throw new Error("Excel में कोई worksheet नहीं मिली।");
+  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false, blankrows: false });
+  if (matrix.length < 2) throw new Error("Excel में header के नीचे कम-से-कम एक staff record होना चाहिए।");
+
+  const headerMap = new Map();
+  (matrix[0] || []).forEach((header, index) => headerMap.set(normalizeExcelHeader(header), index));
+  const missing = STAFF_EXCEL_COLUMNS.map(([label]) => label).filter(label => !headerMap.has(normalizeExcelHeader(label)));
+  if (missing.length) throw new Error("Excel में ये जरूरी columns नहीं मिले: " + missing.join(", "));
+
+  const rows = [];
+  for (let i = 1; i < matrix.length; i++) {
+    const cells = matrix[i] || [];
+    if (cells.every(value => String(value ?? "").trim() === "")) continue;
+    const record = {};
+    for (const [label, key] of STAFF_EXCEL_COLUMNS) {
+      const value = cells[headerMap.get(normalizeExcelHeader(label))];
+      record[key] = value === null || value === undefined ? "" : String(value).trim();
+    }
+    rows.push(record);
+  }
+  if (!rows.length) throw new Error("Excel में कोई भरा हुआ staff record नहीं मिला।");
+  if (rows.length > 5000) throw new Error("एक बार में अधिकतम 5000 Staff Records Upload कर सकते हैं।");
+
+  // IDs are deliberately sent as strings; use the provided template and keep Tag ID cells as Text in Excel.
+  const batchId = crypto.randomUUID();
+  staffImportMessage.textContent = `${rows.length} records staging में भेजे जा रहे हैं...`;
+  const { data, error } = await db.rpc("upload_staff_import_rows", {
+    p_import_batch_id: batchId,
+    p_rows: rows
+  });
+  if (error) throw error;
+  const result = Array.isArray(data) ? data[0] : data;
+  const uploaded = Number(result?.uploaded_rows ?? 0);
+  if (uploaded !== rows.length) throw new Error(`Upload count mismatch: ${uploaded}/${rows.length}`);
+
+  uploadedStaffBatchId = batchId;
+  staffBatchInput.value = batchId;
+  lockStaffImport();
+  validateStaffButton.disabled = false;
+  validateStaffButton.style.opacity = "1";
+  validateStaffButton.style.cursor = "pointer";
+  return uploaded;
+}
+
+uploadStaffExcelButton.addEventListener("click", async () => {
+  uploadStaffExcelButton.disabled = true;
+  uploadStaffExcelButton.textContent = "UPLOADING...";
+  staffImportMessage.style.color = "#174b83";
+  try {
+    const count = await uploadStaffExcel();
+    staffImportMessage.style.color = "green";
+    staffImportMessage.textContent = `${count} Staff Records Excel से सुरक्षित Staging में Upload हो गए। अब Validate Staff Records दबाएँ।`;
+  } catch (error) {
+    staffImportMessage.style.color = "red";
+    staffImportMessage.textContent = "Excel Upload Error: " + (error?.message || "Unknown error");
+  } finally {
+    uploadStaffExcelButton.disabled = false;
+    uploadStaffExcelButton.textContent = "Upload Excel & Prepare Validation";
+  }
+});
 
 function lockStaffImport() {
   validatedStaffBatchId = null;
@@ -812,6 +912,12 @@ function getValidationCounts(result) {
 validateStaffButton.addEventListener("click", async () => {
   const batchId = staffBatchInput.value.trim();
   lockStaffImport();
+
+  if (!uploadedStaffBatchId || uploadedStaffBatchId !== batchId) {
+    staffImportMessage.style.color = "red";
+    staffImportMessage.textContent = "पहले Excel Upload करें।";
+    return;
+  }
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batchId)) {
     staffImportMessage.style.color = "red";
@@ -854,7 +960,7 @@ validateStaffButton.addEventListener("click", async () => {
 
 importStaffButton.addEventListener("click", async () => {
   const batchId = staffBatchInput.value.trim();
-  if (!validatedStaffBatchId || validatedStaffBatchId !== batchId) {
+  if (!uploadedStaffBatchId || uploadedStaffBatchId !== batchId || !validatedStaffBatchId || validatedStaffBatchId !== batchId) {
     lockStaffImport();
     staffImportMessage.style.color = "red";
     staffImportMessage.textContent = "पहले इसी Batch ID की Validation दोबारा करें।";
@@ -895,67 +1001,6 @@ importStaffButton.addEventListener("click", async () => {
     importStaffButton.textContent = "Import Valid Records";
     importStaffButton.disabled = true;
   }
-});
-
-
-const staffSearchInput = document.getElementById("staffSearchInput");
-const staffTableBody = document.getElementById("staffTableBody");
-const staffListStatus = document.getElementById("staffListStatus");
-
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
-  })[char]);
-}
-
-async function loadStaffRecords() {
-  staffListStatus.style.color = "#174b83";
-  staffListStatus.textContent = "Staff records लोड हो रहे हैं...";
-  staffTableBody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-
-  try {
-    const search = staffSearchInput.value.trim();
-    const { data, error } = await db.rpc("get_staff_master_list", {
-      p_search: search || null
-    });
-    if (error) throw error;
-
-    const rows = Array.isArray(data) ? data : [];
-    if (!rows.length) {
-      staffTableBody.innerHTML = '<tr><td colspan="5">कोई Staff Record नहीं मिला।</td></tr>';
-      staffListStatus.style.color = "#64748b";
-      staffListStatus.textContent = "Total Records: 0";
-      return;
-    }
-
-    staffTableBody.innerHTML = rows.map((row, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${escapeHtml(row.tag_id)}</td>
-        <td>${escapeHtml(row.staff_name)}</td>
-        <td>${escapeHtml(row.ef_city)}</td>
-        <td>${escapeHtml(row.ef_role)}</td>
-      </tr>
-    `).join("");
-
-    staffListStatus.style.color = "green";
-    staffListStatus.textContent = `Total Records: ${rows.length}`;
-  } catch (error) {
-    staffTableBody.innerHTML = '<tr><td colspan="5">Records लोड नहीं हो सके।</td></tr>';
-    staffListStatus.style.color = "red";
-    staffListStatus.textContent =
-      "Staff List Error: " + (error?.message || "Unknown error") +
-      " — पहले Supabase SQL function deploy करें।";
-  }
-}
-
-document.getElementById("searchStaffBtn").addEventListener("click", loadStaffRecords);
-document.getElementById("refreshStaffBtn").addEventListener("click", () => {
-  staffSearchInput.value = "";
-  loadStaffRecords();
-});
-staffSearchInput.addEventListener("keydown", event => {
-  if (event.key === "Enter") loadStaffRecords();
 });
 
 document.getElementById("menuBtn").addEventListener("click",()=>{

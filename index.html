@@ -556,7 +556,17 @@ button{cursor:pointer}
         <button class="back-btn" id="backBtn">← Back to Dashboard</button>
         <h2 id="moduleTitle">Module</h2>
         <p id="moduleDescription"></p>
-        <div class="notice">
+        <div id="staffImportPanel" class="panel hidden" style="margin-top:18px">
+          <h3>Staff Master — Import Validation</h3>
+          <p>CSV staging batch की जाँच करें। इस चरण में Staff Master में कोई रिकॉर्ड Import नहीं होगा।</p>
+          <div class="field">
+            <label for="staffBatchId">Import Batch ID</label>
+            <input id="staffBatchId" type="text" value="4fd68c26-d671-4678-9912-0933d615dc6d" autocomplete="off">
+          </div>
+          <button class="quick q-blue" id="validateStaffBtn" type="button">Validate Staff Records</button>
+          <p id="staffImportMessage" role="status" style="overflow-wrap:anywhere"></p>
+        </div>
+        <div class="notice" id="modulePlaceholderNotice">
           This module is being configured. Your database records are not modified from this screen.
         </div>
       </div>
@@ -710,6 +720,16 @@ function showModule(module) {
 
   document.getElementById("moduleTitle").textContent = details[0];
   document.getElementById("moduleDescription").textContent = details[1];
+
+  const staffPanel = document.getElementById("staffImportPanel");
+  const placeholderNotice = document.getElementById("modulePlaceholderNotice");
+  if (module === "staff") {
+    staffPanel.classList.remove("hidden");
+    placeholderNotice.classList.add("hidden");
+  } else {
+    staffPanel.classList.add("hidden");
+    placeholderNotice.classList.remove("hidden");
+  }
 }
 
 document.querySelectorAll("[data-module]").forEach(button=>{
@@ -720,6 +740,40 @@ document.querySelectorAll("[data-module]").forEach(button=>{
 
 document.getElementById("backBtn").addEventListener("click",()=>{
   showModule("dashboard");
+});
+
+document.getElementById("validateStaffBtn").addEventListener("click", async () => {
+  const button = document.getElementById("validateStaffBtn");
+  const message = document.getElementById("staffImportMessage");
+  const batchId = document.getElementById("staffBatchId").value.trim();
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batchId)) {
+    message.style.color = "red";
+    message.textContent = "कृपया सही Import Batch ID डालें।";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "VALIDATING...";
+  message.style.color = "#174b83";
+  message.textContent = "SuperAdmin permission और Staff Records जाँचे जा रहे हैं...";
+
+  try {
+    const { data, error } = await db.functions.invoke("staff-import", {
+      body: { action: "validate", batch_id: batchId }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "Validation failed");
+
+    message.style.color = "green";
+    message.textContent = "Validation response: " + JSON.stringify(data.result);
+  } catch (error) {
+    message.style.color = "red";
+    message.textContent = "Validation error: " + (error?.message || "Unknown error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Validate Staff Records";
+  }
 });
 
 document.getElementById("menuBtn").addEventListener("click",()=>{

@@ -4,7 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ITRUST INFRATECH - Attendance Portal</title>
+  <title>ITRUST INFRATECH | Attendance Portal</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     * {
@@ -14,100 +16,235 @@
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #eef3f9;
-      color: #1e293b;
-    }
-
-    header {
-      background: #123e70;
-      color: white;
-      padding: 22px 15px;
-      text-align: center;
-    }
-
-    header h2 {
-      margin: 0;
-      font-size: 22px;
-    }
-
-    header p {
-      margin: 8px 0 0;
-      font-size: 14px;
-    }
-
-    .container {
-      max-width: 500px;
-      margin: 35px auto;
+      background: #edf3fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 20px;
     }
 
     .card {
       background: white;
-      padding: 25px;
-      border-radius: 14px;
-      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 420px;
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+    }
+
+    h2 {
       text-align: center;
+      color: #123e70;
+      margin: 0;
     }
 
-    .card h3 {
-      color: #174b83;
-      margin-top: 0;
-    }
-
-    .card p {
+    .subtitle {
+      text-align: center;
       color: #64748b;
+      font-size: 13px;
+      margin: 10px 0 25px;
       line-height: 1.6;
     }
 
-    .status {
-      display: inline-block;
-      background: #fff4d6;
-      color: #8a5a00;
-      padding: 8px 15px;
-      border-radius: 20px;
-      font-size: 12px;
+    h3 {
+      text-align: center;
+      color: #174b83;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
       font-weight: bold;
-      margin-top: 12px;
+      margin: 15px 0 7px;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #ccd5e1;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    input:focus {
+      outline: 2px solid #93c5fd;
+      border-color: #1757a6;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 8px;
+      background: #1757a6;
+      color: white;
+      font-weight: bold;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #message {
+      text-align: center;
+      font-size: 13px;
+      margin-top: 15px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
     }
 
     footer {
       text-align: center;
-      color: #64748b;
-      font-size: 12px;
-      padding: 20px;
+      color: #94a3b8;
+      font-size: 11px;
+      margin-top: 22px;
     }
   </style>
 </head>
 
 <body>
 
-  <header>
+  <div class="card">
+
     <h2>ITRUST INFRATECH</h2>
-    <p>MUZAFFARPUR | ATTENDANCE MANAGEMENT PORTAL</p>
-  </header>
 
-  <div class="container">
-    <div class="card">
-      <h3>Attendance Management System</h3>
-
-      <p>
-        Welcome to the Staff Attendance and Duty Management Portal.
-      </p>
-
-      <div class="status">
-        INITIAL SETUP
-      </div>
-
-      <p>
-        Secure attendance management system is being configured.
-      </p>
+    <div class="subtitle">
+      MUZAFFARPUR<br>
+      ATTENDANCE MANAGEMENT PORTAL
     </div>
+
+    <h3>Secure Login</h3>
+
+    <form id="loginForm">
+
+      <label for="email">Email Address</label>
+      <input
+        type="email"
+        id="email"
+        placeholder="Enter email address"
+        required
+        autocomplete="username"
+      >
+
+      <label for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        placeholder="Enter password"
+        required
+        autocomplete="current-password"
+      >
+
+      <button id="loginBtn" type="submit">
+        LOGIN
+      </button>
+
+    </form>
+
+    <div id="message" role="status" aria-live="polite"></div>
+
+    <footer>
+      © 2026 ITRUST INFRATECH
+    </footer>
+
   </div>
 
-  <footer>
-    © 2026 ITRUST INFRATECH
-  </footer>
+<script>
+
+const SUPABASE_URL =
+  "https://vloplldknyojtnpuavyn.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_B1FWuERTMtP3SMaGX4MfOQ_XQntj_cJ";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const loginForm = document.getElementById("loginForm");
+const loginBtn = document.getElementById("loginBtn");
+const message = document.getElementById("message");
+
+loginForm.addEventListener("submit", async function(event) {
+
+  event.preventDefault();
+
+  loginBtn.disabled = true;
+  loginBtn.textContent = "PLEASE WAIT...";
+
+  message.style.color = "#174b83";
+  message.textContent = "Checking login details...";
+
+  try {
+
+    const email = document
+      .getElementById("email")
+      .value.trim();
+
+    const password = document
+      .getElementById("password")
+      .value;
+
+    // Supabase Authentication
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    // Get logged-in user's role
+    const { data: roleData, error: roleError } =
+      await supabaseClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+    if (roleError) {
+      throw roleError;
+    }
+
+    if (
+      !roleData ||
+      !["ADMIN", "SUPERADMIN"].includes(roleData.role)
+    ) {
+      await supabaseClient.auth.signOut();
+
+      throw new Error(
+        "Access denied. Admin account not found."
+      );
+    }
+
+    message.style.color = "green";
+
+    message.textContent =
+      "LOGIN SUCCESSFUL! Role: " + roleData.role +
+      ". Dashboard setup is pending.";
+
+    loginBtn.textContent = "LOGGED IN";
+
+  } catch (error) {
+
+    message.style.color = "red";
+    message.textContent = error.message;
+
+    loginBtn.disabled = false;
+    loginBtn.textContent = "LOGIN";
+
+  }
+
+});
+
+</script>
 
 </body>
 </html>
-

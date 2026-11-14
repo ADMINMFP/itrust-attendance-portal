@@ -600,6 +600,9 @@ button{cursor:pointer}
         <div id="staffMasterViewPanel" class="panel hidden" style="margin-top:18px">
           <h3>Staff Master — Complete Records</h3>
           <p>Tag ID, नाम, शहर, भूमिका और मोबाइल से खोजें। Aadhaar नंबर सूची में सुरक्षित रूप से masked रहेगा।</p>
+          <button class="quick q-green hidden" id="showManualAddStaffBtn" type="button">
+  ＋ Add New Staff
+</button>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
             <input id="staffSearchInput" type="search" placeholder="Search Tag ID / Name / City / Role / Mobile" style="flex:1;min-width:220px;padding:12px;border:1px solid #c9d5e8;border-radius:9px">
             <button class="quick q-blue" id="staffSearchBtn" type="button">Search</button>
@@ -620,7 +623,116 @@ button{cursor:pointer}
             <button class="quick q-blue" id="staffNextBtn" type="button">Next →</button>
           </div>
         </div>
+<div id="staffManualAddPanel" class="panel hidden" style="margin-top:18px;border:2px solid #16a34a">
+  <h3>＋ Add New Staff</h3>
+  <p>नया Staff Record जोड़ने के लिए सभी आवश्यक जानकारी भरें।</p>
 
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 14px">
+
+    <div class="field">
+      <label>Tag ID *</label>
+      <input id="manual_tag_id" type="text" placeholder="IIL12345" maxlength="30">
+    </div>
+
+    <div class="field">
+      <label>First Name *</label>
+      <input id="manual_ef_first_name" type="text">
+    </div>
+
+    <div class="field">
+      <label>Middle Name</label>
+      <input id="manual_ef_middle_name" type="text">
+    </div>
+
+    <div class="field">
+      <label>Last Name</label>
+      <input id="manual_ef_last_name" type="text">
+    </div>
+
+    <div class="field">
+      <label>Region</label>
+      <input id="manual_ef_region" type="text">
+    </div>
+
+    <div class="field">
+      <label>State</label>
+      <input id="manual_ef_state" type="text">
+    </div>
+
+    <div class="field">
+      <label>City</label>
+      <input id="manual_ef_city" type="text">
+    </div>
+
+    <div class="field">
+      <label>Venue Name</label>
+      <input id="manual_ef_venue_name" type="text">
+    </div>
+
+    <div class="field">
+      <label>Date of Birth</label>
+      <input id="manual_ef_dob" type="date">
+    </div>
+
+    <div class="field">
+      <label>Gender</label>
+      <select id="manual_ef_gender">
+        <option value="">Select Gender</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Mobile Number</label>
+      <input id="manual_ef_phonenumber" type="tel" maxlength="15">
+    </div>
+
+    <div class="field">
+      <label>Aadhaar Number</label>
+      <input id="manual_ef_aadhar_number" type="text" inputmode="numeric" maxlength="12">
+    </div>
+
+    <div class="field">
+      <label>Father Name</label>
+      <input id="manual_ef_father_name" type="text">
+    </div>
+
+    <div class="field">
+      <label>Mother Name</label>
+      <input id="manual_ef_mother_name" type="text">
+    </div>
+
+    <div class="field">
+      <label>Email ID</label>
+      <input id="manual_ef_email_id" type="email">
+    </div>
+
+    <div class="field">
+      <label>Qualification</label>
+      <input id="manual_ef_qualification" type="text">
+    </div>
+
+    <div class="field" style="grid-column:1/-1">
+      <label>Permanent Address</label>
+      <textarea id="manual_ef_permanent_address" rows="2"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Role</label>
+      <input id="manual_ef_role" type="text">
+    </div>
+
+  </div>
+
+  <p id="staffManualAddMessage" role="status"></p>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+    <button class="quick q-green" id="saveManualStaffBtn" type="button">Save Staff</button>
+    <button class="quick" id="cancelManualStaffBtn" type="button">Cancel</button>
+  </div>
+</div>
         <div id="staffEditPanel" class="panel hidden" style="margin-top:18px;border:2px solid #0878e8">
           <h3>✏️ Edit Staff Record <span id="editStaffTagLabel"></span></h3>
           <p>Tag ID स्थायी है और बदला नहीं जा सकता। Update केवल SUPERADMIN कर सकता है।</p>
@@ -877,6 +989,15 @@ function showModule(module) {
   const staffPanel = document.getElementById("staffImportPanel");
   const staffViewPanel = document.getElementById("staffMasterViewPanel");
   const staffEditPanel = document.getElementById("staffEditPanel");
+  const staffManualAddPanel = document.getElementById("staffManualAddPanel");
+const manualAddBtn = document.getElementById("showManualAddStaffBtn");
+
+manualAddBtn.classList.toggle(
+  "hidden",
+  module !== "staff" || currentUserRole !== "SUPERADMIN"
+);
+
+staffManualAddPanel.classList.add("hidden");
   const attendancePanel = document.getElementById("attendancePanel");
   const placeholderNotice = document.getElementById("modulePlaceholderNotice");
   const panelMap = {duty:"dutyPanel",view:"viewPanel",reports:"reportsPanel",admins:"adminsPanel",settings:"settingsPanel"};
@@ -1245,7 +1366,123 @@ async function loadStaffMaster(offset=0) {
     setStaffListMessage("Error: " + (error?.message || "Unknown error") + " — SQL functions install करें।", "red");
   }
 }
+// MANUAL ADD STAFF - OPEN / CANCEL
+const showManualAddStaffBtn = document.getElementById("showManualAddStaffBtn");
+const staffManualAddPanel = document.getElementById("staffManualAddPanel");
+const staffMasterViewPanel = document.getElementById("staffMasterViewPanel");
+const staffEditPanel = document.getElementById("staffEditPanel");
 
+if (showManualAddStaffBtn) {
+  showManualAddStaffBtn.classList.toggle(
+    "hidden",
+    currentUserRole !== "SUPERADMIN"
+  );
+
+  showManualAddStaffBtn.addEventListener("click", () => {
+    if (currentUserRole !== "SUPERADMIN") return;
+
+    document.getElementById("manual_tag_id").value = "";
+    document.getElementById("manual_ef_first_name").value = "";
+    document.getElementById("staffManualAddMessage").textContent = "";
+
+    staffMasterViewPanel.classList.add("hidden");
+    staffEditPanel.classList.add("hidden");
+    staffManualAddPanel.classList.remove("hidden");
+
+    staffManualAddPanel.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+}
+
+document.getElementById("cancelManualStaffBtn").addEventListener("click", () => {
+  staffManualAddPanel.classList.add("hidden");
+  staffMasterViewPanel.classList.remove("hidden");
+  document.getElementById("staffManualAddMessage").textContent = "";
+});
+  // SAVE MANUAL STAFF TO SUPABASE
+document.getElementById("saveManualStaffBtn").addEventListener("click", async () => {
+  if (currentUserRole !== "SUPERADMIN") {
+    alert("Only SUPERADMIN can add staff.");
+    return;
+  }
+
+  const getValue = id =>
+    document.getElementById("manual_" + id).value.trim();
+
+  const tagId = getValue("tag_id").toUpperCase();
+  const firstName = getValue("ef_first_name");
+
+  const message = document.getElementById("staffManualAddMessage");
+  const saveBtn = document.getElementById("saveManualStaffBtn");
+
+  if (!/^IIL[0-9]+$/.test(tagId)) {
+    message.style.color = "red";
+    message.textContent = "Valid Tag ID डालें। Format: IIL12345";
+    return;
+  }
+
+  if (!firstName) {
+    message.style.color = "red";
+    message.textContent = "First Name आवश्यक है।";
+    return;
+  }
+
+  const payload = {
+    tag_id: tagId,
+    ef_region: getValue("ef_region"),
+    ef_state: getValue("ef_state"),
+    ef_city: getValue("ef_city"),
+    ef_venue_name: getValue("ef_venue_name"),
+    ef_first_name: firstName,
+    ef_middle_name: getValue("ef_middle_name"),
+    ef_last_name: getValue("ef_last_name"),
+    ef_dob: getValue("ef_dob"),
+    ef_gender: getValue("ef_gender"),
+    ef_phonenumber: getValue("ef_phonenumber"),
+    ef_aadhar_number: getValue("ef_aadhar_number"),
+    ef_father_name: getValue("ef_father_name"),
+    ef_mother_name: getValue("ef_mother_name"),
+    ef_email_id: getValue("ef_email_id"),
+    ef_qualification: getValue("ef_qualification"),
+    ef_permanent_address: getValue("ef_permanent_address"),
+    ef_role: getValue("ef_role")
+  };
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+  message.style.color = "#174b83";
+  message.textContent = "Staff Record सेव हो रहा है...";
+
+  try {
+    const { data, error } = await db.rpc("add_staff_master_record", {
+      p_data: payload
+    });
+
+    if (error) throw error;
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Staff save नहीं हुआ।");
+    }
+
+    alert("Staff Successfully Added: " + data.tag_id);
+
+    document.getElementById("staffManualAddPanel").classList.add("hidden");
+    document.getElementById("staffMasterViewPanel").classList.remove("hidden");
+    document.getElementById("staffManualAddPanel").querySelectorAll("input, select, textarea")
+      .forEach(el => el.value = "");
+
+    await loadStaffMaster(0);
+
+  } catch (error) {
+    message.style.color = "red";
+    message.textContent = "Save Failed: " + (error?.message || "Unknown error");
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save Staff";
+  }
+});
 async function openStaffEditor(staffId) {
   if(currentUserRole !== "SUPERADMIN") { alert("Only SUPERADMIN can edit Staff Master."); return; }
   const message = document.getElementById("staffEditMessage");

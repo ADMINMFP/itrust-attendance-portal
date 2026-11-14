@@ -1193,9 +1193,10 @@ async function loadStaffMaster(offset=0) {
     } else {
       body.innerHTML = staffCurrentRows.map((row,index)=>{
         const fullName = [row.ef_first_name,row.ef_middle_name,row.ef_last_name].filter(Boolean).join(" ");
-        const action = currentUserRole === "SUPERADMIN"
-          ? `<button class="quick q-orange" type="button" data-edit-staff="${escapeHtml(row.id)}">Edit</button>`
-          : '<span style="color:#718096">View only</span>';
+       const action = currentUserRole === "SUPERADMIN"
+  ? `<button class="quick q-orange" type="button" data-edit-staff="${escapeHtml(row.id)}">Edit</button>
+     <button class="quick" style="background:#dc2626;color:white" type="button" data-delete-staff="${escapeHtml(row.id)}" data-delete-tag="${escapeHtml(row.tag_id)}">Delete</button>`
+  : '<span style="color:#718096">View only</span>';
         return `<tr style="border-bottom:1px solid #e5edf7">
           <td style="padding:10px">${staffCurrentOffset+index+1}</td>
           <td style="padding:10px;white-space:nowrap">${escapeHtml(row.tag_id)}</td>
@@ -1208,6 +1209,32 @@ async function loadStaffMaster(offset=0) {
         </tr>`;
       }).join("");
       body.querySelectorAll("[data-edit-staff]").forEach(btn=>btn.addEventListener("click",()=>openStaffEditor(btn.dataset.editStaff)));
+     body.querySelectorAll("[data-delete-staff]").forEach(btn=>{
+  btn.addEventListener("click",async()=>{
+    const staffId = btn.dataset.deleteStaff;
+    const tagId = btn.dataset.deleteTag;
+
+    if(!confirm(`क्या आप ${tagId} को Staff Master से हटाना चाहते हैं?`)) return;
+
+    btn.disabled = true;
+    btn.textContent = "Deleting...";
+
+    try {
+      const {error} = await db.rpc("soft_delete_staff_master",{
+        p_staff_id: staffId
+      });
+
+      if(error) throw error;
+
+      alert("Staff record successfully deleted.");
+      await loadStaffMaster();
+    } catch(error) {
+      alert("Delete failed: " + (error?.message || "Unknown error"));
+      btn.disabled = false;
+      btn.textContent = "Delete";
+    }
+  });
+});
     }
     setStaffListMessage(`इस पेज पर ${staffCurrentRows.length} रिकॉर्ड | कुल पेज आकार ${STAFF_PAGE_SIZE}`, "green");
     document.getElementById("staffPageInfo").textContent = `Page ${Math.floor(staffCurrentOffset/STAFF_PAGE_SIZE)+1}`;

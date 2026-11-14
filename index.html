@@ -764,8 +764,38 @@ button{cursor:pointer}
 
         <div id="attendancePanel" class="panel hidden" style="margin-top:18px">
           <h3>☑️ Daily Attendance — Live Camera Verification</h3>
+          <div class="form-grid" style="margin:12px 0">
+  <div class="field">
+    <label>Attendance Date</label>
+    <input id="liveAttendanceDate" type="date">
+  </div>
+  <button class="quick q-blue" id="loadAssignedStaffBtn" type="button">
+    Load Assigned Staff
+  </button>
+</div>
+
+<div id="assignedStaffMessage" class="statusline">
+  Date चुनकर Assigned Staff Load करें।
+</div>
+
+<div style="overflow:auto">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>SL</th>
+        <th>TAG ID</th>
+        <th>STAFF NAME</th>
+        <th>ROLE</th>
+        <th>PHOTO / ATTENDANCE</th>
+      </tr>
+    </thead>
+    <tbody id="assignedStaffRows">
+      <tr><td colspan="5">No staff loaded.</td></tr>
+    </tbody>
+  </table>
+</div>
           <p>Tag ID डालकर Staff खोजें। Present के लिए Live Camera फोटो आवश्यक है। Absent के लिए फोटो आवश्यक नहीं है।</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+         <div style="display:none">
             <div class="field" style="flex:1;min-width:220px;margin-bottom:8px">
               <label for="attendanceTagInput">Staff Tag ID</label>
               <input id="attendanceTagInput" type="text" placeholder="उदाहरण: IIL12345" autocomplete="off" style="width:100%;padding:12px;border:1px solid #c9d5e8;border-radius:9px;text-transform:uppercase">
@@ -773,7 +803,7 @@ button{cursor:pointer}
             <button class="quick q-blue" id="attendanceFindBtn" type="button">Find Staff</button>
           </div>
           <div id="attendanceStaffInfo" class="attendance-status">अभी कोई Staff चयनित नहीं है।</div>
-          <div class="attendance-actions">
+         <div class="attendance-actions" style="display:none">
             <button class="quick q-green" id="markPresentBtn" type="button" disabled>✔ Mark Present + Camera</button>
             <button class="quick q-orange" id="markAbsentBtn" type="button" disabled>✖ Mark Absent</button>
           </div>
@@ -794,6 +824,9 @@ button{cursor:pointer}
             <div class="attendance-actions">
               <button class="quick q-blue" id="capturePhotoBtn" type="button">📸 Capture Photo</button>
               <button class="quick q-green" id="uploadPhotoBtn" type="button" disabled>⬆ Upload Photo</button>
+              <button class="quick q-green" id="liveMarkPresentBtn" type="button" disabled>
+  ✔ Mark as Present
+</button>
               <button class="quick q-orange" id="retakePhotoBtn" type="button" disabled>↻ Retake</button>
               <button class="quick" id="stopCameraBtn" type="button" style="background:#64748b;color:white">Stop Camera</button>
             </div>
@@ -1008,7 +1041,16 @@ staffManualAddPanel.classList.add("hidden");
   Object.entries(panelMap).forEach(([key,id])=>document.getElementById(id).classList.toggle("hidden",module!==key));
   placeholderNotice.classList.add("hidden");
   if(module === "staff") loadStaffMaster(0);
-  if(module === "attendance") resetAttendanceSelection();
+  if (module === "attendance") {
+  resetAttendanceSelection();
+
+  const liveDateInput = document.getElementById("liveAttendanceDate");
+
+  if (liveDateInput) {
+    liveDateInput.value = indiaToday();
+    loadAssignedStaff();
+  }
+}
   if(module === "duty") document.getElementById("dutyDate").value ||= indiaToday();
   if(module === "view") document.getElementById("viewAttendanceDate").value ||= indiaToday();
   if(module === "reports") document.getElementById("reportDate").value ||= indiaToday();
@@ -1718,9 +1760,11 @@ capturePhotoBtn.addEventListener("click", () => {
     ctx.fillStyle = "#ffffff";
     ctx.fillText("ADARSH PARIKSHA KENDRA", width/2, height-bandHeight/2);
     capturedAttendanceDataUrl = canvasToTargetJpeg(attendanceCanvas);
+    document.getElementById("liveMarkPresentBtn").disabled = false;
+uploadPhotoBtn.disabled = true;
     attendanceCanvas.classList.remove("hidden");
     document.getElementById("cameraPreviewHint").classList.add("hidden");
-    uploadPhotoBtn.disabled = false;
+   uploadPhotoBtn.disabled = true;
     retakePhotoBtn.disabled = false;
     setAttendanceMessage("फोटो Capture हो गई और watermark लग गया। Upload Photo दबाएँ।", "green");
   } catch(error) {
@@ -1732,6 +1776,7 @@ capturePhotoBtn.addEventListener("click", () => {
 
 retakePhotoBtn.addEventListener("click", () => {
   capturedAttendanceDataUrl = null;
+  document.getElementById("liveMarkPresentBtn").disabled = true;
   attendanceCanvas.classList.add("hidden");
   document.getElementById("cameraPreviewHint").classList.remove("hidden");
   uploadPhotoBtn.disabled = true;
@@ -1764,7 +1809,30 @@ uploadPhotoBtn.addEventListener("click", async () => {
     capturePhotoBtn.disabled = false;
   }
 });
+// LIVE ATTENDANCE - MARK PRESENT AFTER PHOTO CAPTURE
+document.getElementById("liveMarkPresentBtn").addEventListener("click", async () => {
+  if (!selectedAttendanceStaff || !capturedAttendanceDataUrl) {
+    setAttendanceMessage("पहले Staff की Photo Capture करें।", "red");
+    return;
+  }
 
+  const btn = document.getElementById("liveMarkPresentBtn");
+  btn.disabled = true;
+
+  try {
+    setAttendanceMessage("Attendance Present सेव हो रही है...", "green");
+
+    await markAttendance("P");
+    attendanceAlreadyMarkedPresent = true;
+uploadPhotoBtn.disabled = false;
+    uploadPhotoBtn.click();
+
+  } catch (error) {
+    attendanceAlreadyMarkedPresent = false;
+    btn.disabled = false;
+    setAttendanceMessage("Attendance Error: " + error.message, "red");
+  }
+});
 document.getElementById("stopCameraBtn").addEventListener("click", () => {
   stopAttendanceCamera();
   setAttendanceMessage("Camera बंद कर दिया गया। Present attendance दर्ज है; फोटो Upload करने के लिए Camera दोबारा खोलना होगा।", "#b45309");
@@ -1791,8 +1859,144 @@ document.getElementById("logoutBtn").addEventListener("click",async()=>{
   loginMessage.textContent = "";
 });
 
+// LIVE ATTENDANCE - OPEN CAMERA FOR SELECTED STAFF
+let liveSelectedStaff = null;
+let liveCapturedPhoto = null;
 
-// ACCESS CONTROL + DUTY / ATTENDANCE VIEW / REPORTS / ADMIN MANAGEMENT
+document.getElementById("assignedStaffRows").addEventListener("click", async (event) => {
+  const btn = event.target.closest("[data-live-photo-tag]");
+  if (!btn) return;
+
+  const tagId = btn.dataset.livePhotoTag;
+  const row = btn.closest("tr");
+  const name = row?.children[2]?.textContent || "";
+
+  try {
+    liveSelectedStaff = {
+      tag_id: tagId,
+      attendance_date: document.getElementById("liveAttendanceDate").value
+    };
+
+    selectedAttendanceStaff = {
+      tag_id: tagId,
+      name: name
+    };
+
+    capturedAttendanceDataUrl = null;
+    attendanceAlreadyMarkedPresent = false;
+
+    attendanceCanvas.classList.add("hidden");
+    document.getElementById("cameraPreviewHint").classList.remove("hidden");
+    uploadPhotoBtn.disabled = true;
+    retakePhotoBtn.disabled = true;
+    document.getElementById("liveMarkPresentBtn").disabled = true;
+
+    cameraPanel.classList.remove("hidden");
+    await startAttendanceCamera();
+
+    setAttendanceMessage(
+      `${tagId} — Camera तैयार है। Photo Capture करें।`,
+      "green"
+    );
+  } catch (error) {
+    stopAttendanceCamera();
+    setAttendanceMessage("Camera Error: " + error.message, "red");
+  }
+});
+  // LIVE ATTENDANCE - STAFF SEARCH FILTER
+document.getElementById("assignedStaffSearch").addEventListener("input", () => {
+  const search = document.getElementById("assignedStaffSearch")
+    .value.trim().toLowerCase();
+
+  const rows = document.querySelectorAll("#assignedStaffRows tr");
+
+  rows.forEach(row => {
+    const tag = row.children[1]?.textContent.toLowerCase() || "";
+    const name = row.children[2]?.textContent.toLowerCase() || "";
+    const lastDigits = tag.replace(/\D/g, "").slice(-4);
+
+    const match =
+      !search ||
+      tag.toLowerCase().includes(search) ||
+      name.includes(search) ||
+      lastDigits.includes(search);
+
+    row.style.display = match ? "" : "none";
+  });
+});
+// LIVE ATTENDANCE - LOAD DATE-WISE ASSIGNED STAFF
+async function loadAssignedStaff() {
+  const dateInput = document.getElementById("liveAttendanceDate");
+  const tbody = document.getElementById("assignedStaffRows");
+  const message = document.getElementById("assignedStaffMessage");
+  const loadBtn = document.getElementById("loadAssignedStaffBtn");
+
+  const date = dateInput.value;
+
+  if (!date) {
+    message.textContent = "कृपया Attendance Date चुनें।";
+    return;
+  }
+
+  loadBtn.disabled = true;
+  message.textContent = "Assigned Staff लोड हो रहे हैं...";
+  tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+
+  try {
+    const { data, error } = await db.rpc("get_duty_assignments", {
+      p_duty_date: date,
+      p_search: null
+    });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5">इस तारीख को कोई Duty Assigned नहीं है।</td></tr>';
+      message.textContent = "कोई Assigned Staff नहीं मिला।";
+      return;
+    }
+
+    tbody.innerHTML = data.map((r, index) => {
+      const tag = r.tag_id ?? r.staff_tag_id ?? "";
+      const name = r.staff_name ?? r.name ?? r.ef_first_name ?? "";
+      const role = r.ef_role ?? r.role ?? "";
+
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${tag}</td>
+          <td>${name}</td>
+          <td>${role}</td>
+          <td>
+            <button class="quick q-blue"
+              type="button"
+              data-live-photo-tag="${tag}">
+              📷 Add Photo
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    message.textContent = `कुल ${data.length} Assigned Staff मिले।`;
+
+  } catch (error) {
+    tbody.innerHTML = '<tr><td colspan="5">Data Load नहीं हुआ।</td></tr>';
+    message.textContent = "Error: " + error.message;
+  } finally {
+    loadBtn.disabled = false;
+  }
+}
+
+document.getElementById("loadAssignedStaffBtn")
+  .addEventListener("click", loadAssignedStaff);
+  // SET DEFAULT LIVE ATTENDANCE DATE
+const liveDateInput = document.getElementById("liveAttendanceDate");
+
+if (liveDateInput && !liveDateInput.value) {
+  liveDateInput.value = indiaToday();
+}
+  // ACCESS CONTROL + DUTY / ATTENDANCE VIEW / REPORTS / ADMIN MANAGEMENT
 const MODULES = ["DASHBOARD","STAFF_MASTER","ATTENDANCE","DUTY","REPORTS","ADMIN_MANAGEMENT","SYSTEM_SETTINGS"];
 const MODULE_LABELS = {DASHBOARD:"Dashboard",STAFF_MASTER:"Staff Master",ATTENDANCE:"Attendance",DUTY:"Duty Assignment",REPORTS:"Reports",ADMIN_MANAGEMENT:"Admin Management",SYSTEM_SETTINGS:"System Settings"};
 let portalAccess = null;

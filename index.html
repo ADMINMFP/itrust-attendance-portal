@@ -1181,7 +1181,11 @@ async function loadStaffMaster(offset=0) {
   body.innerHTML = '<tr><td colspan="8" style="padding:15px;text-align:center">Loading Staff Master...</td></tr>';
   setStaffListMessage("Staff records लोड हो रहे हैं...");
   try {
-    const {data,error} = await db.rpc("get_staff_master_records_secured", {
+    const {data,error} = await db.rpc("get_staff_master_records", {
+  p_search: staffCurrentSearch || null,
+  p_limit: STAFF_PAGE_SIZE,
+  p_offset: staffCurrentOffset
+});
       p_search: staffCurrentSearch || null,
       p_limit: STAFF_PAGE_SIZE,
       p_offset: staffCurrentOffset,

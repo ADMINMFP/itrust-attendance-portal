@@ -1186,11 +1186,6 @@ async function loadStaffMaster(offset=0) {
   p_limit: STAFF_PAGE_SIZE,
   p_offset: staffCurrentOffset
 });
-      const {data,error} = await db.rpc("get_staff_master_records", {
-  p_search: staffCurrentSearch || null,
-  p_limit: STAFF_PAGE_SIZE,
-  p_offset: staffCurrentOffset
-});
     if(error) throw error;
     staffCurrentRows = Array.isArray(data) ? data : [];
     if(!staffCurrentRows.length) {

@@ -378,6 +378,328 @@ button{cursor:pointer}
   .module p{font-size:11px}
   .bottom-grid{grid-template-columns:1fr}
 }
+  
+/* ===== PROFESSIONAL HRMS DASHBOARD THEME ===== */
+
+#dashboardScreen {
+  background: #f3f5f9;
+  min-height: 100vh;
+}
+
+.topbar {
+  height: 70px;
+  background: #ffffff;
+  color: #172033;
+  padding: 10px 24px;
+  box-shadow: 0 2px 8px #0000000d;
+  position: relative;
+  z-index: 5;
+}
+
+.brand h1 {
+  color: #172033;
+  font-size: 21px;
+}
+
+.brand small {
+  color: #6254e8;
+}
+
+.menu-btn {
+  color: #172033;
+}
+
+.profile-icon {
+  background: #6254e8;
+  color: #ffffff;
+}
+
+.profile small {
+  color: #667085;
+}
+
+.layout {
+  min-height: calc(100vh - 70px);
+}
+
+.sidebar {
+  width: 250px;
+  background: #111827;
+  color: #ffffff;
+  padding: 25px 10px;
+}
+
+.sidebar::before {
+  content: "MAIN MENU";
+  display: block;
+  color: #8792a7;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 5px 12px 15px;
+}
+
+.nav-item {
+  color: #e5e7eb;
+  border-radius: 9px;
+  padding: 14px 13px;
+  font-weight: 500;
+  margin-bottom: 7px;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: #5145e5;
+  color: #ffffff;
+}
+
+.nav-item.logout {
+  color: #ff7777;
+}
+
+.main {
+  background: #f3f5f9;
+  padding: 25px 28px;
+}
+
+.welcome-row h2 {
+  color: #172033;
+}
+
+.welcome-row p {
+  color: #667085;
+}
+
+.date-box {
+  background: #ffffff;
+  border: 1px solid #e3e7ef;
+  color: #5145e5;
+}
+
+.stat {
+  background: #ffffff !important;
+  color: #172033;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #5145e5;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #00000008;
+}
+
+.stat.green { border-left-color: #16a34a; }
+.stat.red { border-left-color: #dc2626; }
+.stat.purple { border-left-color: #9333ea; }
+
+.stat .label {
+  color: #667085;
+}
+
+.module {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #00000008;
+}
+
+.module h3 {
+  color: #172033;
+}
+
+.module p {
+  color: #667085;
+}
+
+.panel,
+#moduleContent {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #00000008;
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    width: 210px;
+  }
+
+  .main {
+    padding: 16px;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .sidebar {
+    width: 180px;
+  }
+
+  .brand h1 {
+    font-size: 15px;
+  }
+
+  .profile strong {
+    font-size: 12px;
+  }
+
+  .modules {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== DASHBOARD WELCOME BANNER ===== */
+
+.welcome-row {
+  background: linear-gradient(110deg, #192b5d, #2863df);
+  color: #ffffff;
+  padding: 25px 28px;
+  border-radius: 0 0 16px 16px;
+  margin: -25px -28px 24px;
+  min-height: 115px;
+}
+
+.welcome-row h2 {
+  color: #ffffff;
+  font-size: 25px;
+}
+
+.welcome-row p {
+  color: #e1eaff;
+}
+
+.welcome-row .date-box {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #ffffff55;
+}
+
+/* ===== HRMS STATISTICS CARDS ===== */
+
+.stats {
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.stat {
+  position: relative;
+  min-height: 145px;
+  padding: 22px 65px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.stat .number {
+  font-size: 30px;
+  color: #172033;
+  font-weight: 700;
+}
+
+.stat .label {
+  font-size: 13px;
+  margin-top: 9px;
+  color: #667085;
+}
+
+.stat::after {
+  position: absolute;
+  right: 18px;
+  top: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 25px;
+  background: #e8f0ff;
+}
+
+.stat:nth-child(1)::after {
+  content: "👥";
+  background: #e2edff;
+}
+
+.stat:nth-child(2)::after {
+  content: "✔";
+  color: #159447;
+  background: #dcfce7;
+}
+
+.stat:nth-child(3)::after {
+  content: "✖";
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.stat:nth-child(4)::after {
+  content: "📅";
+  background: #f0e7ff;
+}
+
+/* ===== QUICK ACCESS MODULE CARDS ===== */
+
+.section-title {
+  color: #172033;
+  font-size: 19px;
+  font-weight: 700;
+  margin: 28px 0 16px;
+}
+
+.modules {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.module {
+  min-height: 150px;
+  padding: 22px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff !important;
+  text-align: left;
+  transition: all .2s ease;
+}
+
+.module:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px #17203312;
+  border-color: #b8c5e8;
+}
+
+.module .ico {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #e8efff;
+  font-size: 25px;
+  margin-bottom: 15px;
+}
+
+.module h3 {
+  font-size: 16px;
+  margin-bottom: 7px;
+  color: #172033;
+}
+
+.module p {
+  font-size: 12px;
+  color: #667085;
+}
+
+@media (max-width: 800px) {
+  .modules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 </style>
 </head>
 

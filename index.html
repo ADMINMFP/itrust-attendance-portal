@@ -2397,18 +2397,103 @@ document.getElementById("dutyAssignBtn").addEventListener("click",async()=>{try{
 document.getElementById("dutyReplaceBtn").addEventListener("click",async()=>{try{const oldTag=document.getElementById("dutyOldTag").value.trim().toUpperCase(),newTag=document.getElementById("dutyNewTag").value.trim().toUpperCase(),date=document.getElementById("dutyDate").value;if(!oldTag||!newTag||!date)throw new Error("Old Tag, New Tag और Date भरें।");await dutyAction("replace_staff_duty",{p_old_tag_id:oldTag,p_new_tag_id:newTag,p_duty_date:date});statusText("dutyMessage",`${oldTag} replaced with ${newTag}.`,"green");await loadDuty();}catch(e){statusText("dutyMessage",e.message,"red");}});
 document.getElementById("dutyRemoveBtn").addEventListener("click",async()=>{try{const tag=document.getElementById("dutyTag").value.trim().toUpperCase(),date=document.getElementById("dutyDate").value;if(!tag||!date)throw new Error("Tag ID और Date भरें।");if(!confirm(`${tag} की ${date} duty हटाएँ?`))return;await dutyAction("remove_staff_duty",{p_tag_id:tag,p_duty_date:date});statusText("dutyMessage",`${tag} duty removed.`,"green");await loadDuty();}catch(e){statusText("dutyMessage",e.message,"red");}});
 
-function renderDynamicTable(headId,bodyId,rows){
- const head=document.getElementById(headId),body=document.getElementById(bodyId);if(!rows.length){head.innerHTML="";body.innerHTML='<tr><td>No records found.</td></tr>';return;}
- const keys=Object.keys(rows[0]);head.innerHTML="<tr>"+keys.map(k=>`<th>${escapeHtml(k.replaceAll("_"," ").toUpperCase())}</th>`).join("")+"</tr>";
- body.innerHTML=rows.map(r=>"<tr>"+keys.map(k=>`<td>${escapeHtml(r[k]??"")}</td>`).join("")+"</tr>").join("");
+
+function renderDynamicTable(headId, bodyId, rows) {
+  const head = document.getElementById(headId);
+  const body = document.getElementById(bodyId);
+
+  if (!rows.length) {
+    head.innerHTML = "";
+    body.innerHTML = '<tr><td>No records found.</td></tr>';
+    return;
+  }
+
+  const keys = Object.keys(rows[0]);
+  const showDelete =
+    bodyId === "attendanceViewRows" &&
+    currentUserRole === "SUPERADMIN";
+
+  head.innerHTML =
+    "<tr>" +
+    keys.map(k =>
+      `<th>${escapeHtml(k.replaceAll("_", " ").toUpperCase())}</th>`
+    ).join("") +
+    (showDelete ? "<th>ACTION</th>" : "") +
+    "</tr>";
+
+  body.innerHTML = rows.map(r =>
+    "<tr>" +
+    keys.map(k =>
+      `<td>${escapeHtml(r[k] ?? "")}</td>`
+    ).join("") +
+    (showDelete
+      ? `<td><button class="quick q-orange" data-delete-attendance="${escapeHtml(r.attendance_id ?? "")}">🗑 Delete</button></td>`
+      : "") +
+    "</tr>"
+  ).join("");
 }
+
 async function loadAttendanceView(){
  const date=document.getElementById("viewAttendanceDate").value,search=document.getElementById("viewAttendanceSearch").value.trim()||null;if(!date)throw new Error("Attendance date चुनें।");
  const {data,error}=await db.rpc("get_attendance_records",{p_attendance_date:date,p_search:search});if(error)throw error;
  lastAttendanceRows=Array.isArray(data)?data:[];renderDynamicTable("attendanceViewHead","attendanceViewRows",lastAttendanceRows);statusText("viewAttendanceMessage",`${date}: ${lastAttendanceRows.length} records`,"green");
 }
 document.getElementById("loadAttendanceViewBtn").addEventListener("click",async()=>{try{await loadAttendanceView();}catch(e){statusText("viewAttendanceMessage",e.message,"red");}});
-function exportRowsXlsx(rows,name){if(!rows.length)throw new Error("Export के लिए कोई records नहीं हैं।");const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Attendance");XLSX.writeFile(wb,name);}
+
+document.getElementById("attendanceViewRows").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-delete-attendance]");
+  if (!button) return;
+
+  if (currentUserRole !== "SUPERADMIN") {
+    alert("Only SUPERADMIN can delete attendance.");
+    return;
+  }
+
+  const attendanceId = button.dataset.deleteAttendance;
+  if (!attendanceId) return;
+
+  const confirmed = confirm(
+    "क्या आप यह Attendance Record और इसकी Google Drive Photo Delete करना चाहते हैं?\n\nयह कार्रवाई वापस नहीं की जा सकती।"
+  );
+
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = "Deleting...";
+
+  statusText("viewAttendanceMessage", "Attendance और Photo Delete हो रही है...", "blue");
+
+  try {
+    const { data, error } = await db.functions.invoke("attendance-delete", {
+      body: { attendanceId }
+    });
+
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || "Delete failed.");
+    }
+
+    statusText(
+      "viewAttendanceMessage",
+      "Attendance और Google Drive Photo सफलतापूर्वक Delete हुई।",
+      "green"
+    );
+
+    await loadAttendanceView();
+
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "🗑 Delete";
+
+    statusText(
+      "viewAttendanceMessage",
+      error.message || "Attendance Delete नहीं हुई।",
+      "red"
+    );
+  }
+});
+
+  function exportRowsXlsx(rows,name){if(!rows.length)throw new Error("Export के लिए कोई records नहीं हैं।");const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Attendance");XLSX.writeFile(wb,name);}
 document.getElementById("exportAttendanceBtn").addEventListener("click",()=>{try{exportRowsXlsx(lastAttendanceRows,`ADARSH_ATTENDANCE_${document.getElementById("viewAttendanceDate").value}.xlsx`);}catch(e){statusText("viewAttendanceMessage",e.message,"red");}});
 async function loadDailySummary(){const date=document.getElementById("reportDate").value;if(!date)throw new Error("Report date चुनें।");const {data,error}=await db.rpc("get_attendance_summary",{p_attendance_date:date});if(error)throw error;const row=Array.isArray(data)?data[0]:data;statusText("reportMessage",row?JSON.stringify(row):"No summary returned.","green");}
 document.getElementById("dailyReportBtn").addEventListener("click",async()=>{try{await loadDailySummary();}catch(e){statusText("reportMessage",e.message,"red");}});
